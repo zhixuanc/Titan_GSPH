@@ -268,6 +268,10 @@ void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
       BucketHead bhead(bkey, xx);
       PartitionTable->push_back(bhead);
     }
+
+  // sort bucket-heads
+  sort (PartitionTable->begin(), PartitionTable->end());
+
   delete [] sfc_vertices;
   delete itr;
   return;
