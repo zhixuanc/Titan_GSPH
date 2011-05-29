@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
   }
 
   // order buckets according to keys
-  sort(repart_keys.begin(), repart_keys.end(), compare_keys);
+  //sort(repart_keys.begin(), repart_keys.end(), compare_keys);
 
   int bucks_per_proc = (nx/np);
   for (i=0; i < nx; i++ )
