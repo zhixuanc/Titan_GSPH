@@ -45,9 +45,9 @@ class BucketHead {
     }
 
     //! comparison operator for sorting
-    bool operator < (BucketHead & b1)
+    bool operator < (BucketHead b1)
     {
-      return (this->get_coord() < b1.get_coord());
+      return ( coord < b1.get_coord());
     }
 };
 
