@@ -139,7 +139,7 @@ int main(int argc, char **argv)
     calc_gradients(P_table);
 
     // update momentum
-    if ( mom_update (P_table, BG_mesh, matprops, dt ) != 0 )
+    if ( mom_update (myid, P_table, BG_mesh, matprops, dt ) != 0 )
     {
       cerr << "Momentum update failed on proc" << myid << 
             " at time-step : " << timeprops->step << endl;

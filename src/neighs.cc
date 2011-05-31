@@ -68,15 +68,19 @@ int search_neighs (int myid, HashTable *P_table, HashTable *BG_mesh)
 
         // all particles in current bucket are neighbors
         neighs.clear();
+
         //  all particles of current bucket are neighbors
         neighs.insert(neighs.begin(), plist.begin(), plist.end());
 
         // search the neighboring buckets for neighbors
         neighbors = curr_bucket->get_neighbors();
+        const int *neigh_proc = curr_bucket->get_neigh_proc();
         for (i=0; i<NEIGH_SIZE; i++)
-          if ( *(curr_bucket->get_neigh_proc()+i) > -1 )
+          if ( *(neigh_proc+i) > -1 )
           {
             neigh_bucket = (Bucket *) BG_mesh->lookup(neighbors[i]);
+            if ( !(neigh_bucket) && (*(neigh_proc+i) != myid) )
+              continue;
             assert(neigh_bucket);
             vector<Key> plist2 = neigh_bucket->get_plist();
             vector<Key>::iterator it2;

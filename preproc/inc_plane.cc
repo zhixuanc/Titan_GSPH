@@ -33,7 +33,10 @@ double GIS_get_elevation (double x, int *polytype)
 {
   double z = Slope * x + Intcpt;
   *polytype = LINE;
-  return 0.2;
+  if ( z > 0.1 )
+    return z;
+  else
+   return 0.1;
 }
 
 int Get_xmin(double *crd)

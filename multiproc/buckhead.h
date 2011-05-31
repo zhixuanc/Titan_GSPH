@@ -32,6 +32,7 @@ class BucketHead {
       bucket = k;
       coord  = x;
     }
+
     //! get key of first bucket
     Key get_bucket() 
     {
@@ -39,15 +40,15 @@ class BucketHead {
     }
 
     //! get cooord
-    double get_coord()
+    double get_coord() const
     {
       return coord;
     }
 
     //! comparison operator for sorting
-    bool operator < (BucketHead b1)
+    bool operator< (BucketHead rhs) const
     {
-      return ( coord < b1.get_coord());
+      return ( coord < rhs.get_coord());
     }
 };
 

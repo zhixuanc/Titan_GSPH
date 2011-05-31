@@ -62,6 +62,7 @@ void init_piles(
                );
 //! Momentum update function. This where most of the work is done
 int mom_update(
+               int ,           //! my Proc ID
                HashTable *,    //! HashTable of SPH partilces
                HashTable *,    //! HashTable of Mesh elements
                MatProps *,     //! Material properties data

@@ -37,7 +37,7 @@ using namespace std;
 const double sqrt2 = 1.41421356237310;
 
 int
-mom_update (HashTable * P_table, HashTable * BG_mesh,
+mom_update (int myid, HashTable * P_table, HashTable * BG_mesh,
             MatProps * matprops, double dt)
 {
   int i, j, k;
@@ -147,6 +147,9 @@ mom_update (HashTable * P_table, HashTable * BG_mesh,
 	    if ( *(buck->get_neigh_proc()+i) > -1 )
 	    {
 	      Bucket *buck_neigh = (Bucket *) BG_mesh->lookup(neighbors[i]);
+              if ( !(buck_neigh) && (*(buck->get_neigh_proc()+i)) != myid)
+                continue;
+              assert(buck_neigh);
 	      if ( buck_neigh->get_bucket_type() == MIXED )
               {
 		// get dirction cosines

@@ -131,6 +131,9 @@ int update_pos(int myid, HashTable *P_table, HashTable *BG_mesh,
               {
                 Key tmpkey = *(curr_bucket->get_neighbors()+i);
                 Bucket *neigh = (Bucket *) BG_mesh->lookup(tmpkey);
+                if ( !(neigh) && 
+                     (*(curr_bucket->get_neigh_proc()+i)!=myid) )
+                  continue;
                 if ( neigh->get_bucket_type() == MIXED )
                 {
                   double temp = neigh->get_bnddist(pos, junk);
