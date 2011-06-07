@@ -86,10 +86,8 @@ void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
       for (p_itr=particles.begin(); p_itr!=particles.end(); p_itr++)
       {
         Particle *p_curr = (Particle *) P_table->lookup(*p_itr);
-        if ( p_curr->is_ghost() )
+        if ( !p_curr->is_ghost() )
           iwght += 1.;
-        else
-          iwght += 3.;
       }
       Curr_buck = (Bucket*) BG_mesh->lookup(Curr_buck->which_neigh(Up));
     } while ((Curr_buck->which_neigh_proc(Up)) != -1 );

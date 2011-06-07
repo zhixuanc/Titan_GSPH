@@ -63,7 +63,7 @@ void move_data(int nump, int myid, HashTable *P_table, HashTable *BG_mesh)
   HTIterator *itr = new HTIterator(BG_mesh);
   Bucket *buck;
   while ((buck = (Bucket *) itr->next()))
-    if ( buck->is_active() && !buck->is_guest() )
+    if ( !buck->is_guest() )
     {
       const int *neigh_proc = buck->get_neigh_proc();
       vector<Key> plist = buck->get_plist();
@@ -184,9 +184,10 @@ void move_data(int nump, int myid, HashTable *P_table, HashTable *BG_mesh)
     counter_send_proc[2*i+1] = counter_send_proc[2*(i-1)+1] + send_info[2*(i-1)+1];
   }
 
+  /* Pack buckets and particles that are being sent over to other procs */
   itr->reset();
   while ( (buck = (Bucket *) itr->next()) )
-    if ( buck->is_active() && !buck->is_guest() )
+    if ( !buck->is_guest() )
     {    
       const int* neigh_proc = buck->get_neigh_proc();
       // set check proc to zero
