@@ -313,6 +313,7 @@ int Bucket::put_ghost_particles(HashTable *P_table,
   // get handle to the neigh below
   Key nghkey = which_neigh(Down);
   Bucket *neigh = (Bucket *) BG_mesh->lookup(nghkey);
+  assert(neigh);
   int npts = PARTICLE_DENSITY;
 
   for (i=0; i < npts; i++)
