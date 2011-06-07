@@ -78,13 +78,7 @@ double timestep (HashTable *p_table, MatProps *matprops_ptr)
     }
   }
 
-#ifdef MULTI_PROC
-  double global_dt=0;
-  i = MPI_Allreduce(&dt, &global_dt, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  dt = 0.2*global_dt;
-#endif
-
   // delete HT Iterator
   delete itr;
-  return dt;
+  return (0.2*dt);
 }

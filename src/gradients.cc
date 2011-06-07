@@ -32,7 +32,7 @@ using namespace std;
 #include "constants.h"
 #include "sph_header.h"
 
-void calc_gradients(HashTable *P_table)
+int calc_gradients(HashTable *P_table)
 {
   int i,j,k;
   const int SIZE = DIMENSION;
@@ -109,11 +109,19 @@ void calc_gradients(HashTable *P_table)
       for (i=0; i<DIMENSION; i++)
         gradU[i*DIMENSION+i] = t1[i]/t2[i];
 
+      for (i=0; i<DIMSQRD; i++)
+        if ( isnan(gradU[i]) )
+        {
+          fprintf(stderr,"FATAL ERROR: calc_gradients() failed\n");
+          fprintf(stderr,".. at (%f, %f), no of neighbors: %d \n", 
+                          xi[0], xi[1], num_neigh);
+          return -1;
+        }
       // update values of slopes
       pi->put_d_vel(gradU);
     }
   
   // clean up stuff
   delete itr;
-  return;
+  return 0;
 }

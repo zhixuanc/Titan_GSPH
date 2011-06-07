@@ -38,7 +38,7 @@ int  calc_f_coef(
                 );
 
 //! Calculate velocity gradients
-void calc_gradients(
+int calc_gradients(
                     HashTable * //! Hashtable of SPH partilces
                    );
 

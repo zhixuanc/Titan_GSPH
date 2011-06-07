@@ -97,6 +97,9 @@ int calc_f_coef(HashTable *P_table, HashTable *BG_mesh, MatProps *matprops)
           if ( *(curr_bucket->get_neigh_proc()+j) > -1 )
           {
             Bucket *nb = (Bucket *) BG_mesh->lookup(nbuckets[j]);
+            if ( !(nb) && 
+                 (curr_bucket->get_bucket_type() == UNDERGROUND) )
+              continue;
             assert(nb);
 
             // skip bucket totally below the boundary

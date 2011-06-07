@@ -58,7 +58,7 @@ int main(int argc, char **argv)
   int adapt = 0;
   int lost = 0;
   int lostsum = 0;
-
+  double loc_data[2], glob_data[2];
   int myid, numprocs;
 #ifdef MULTI_PROC
   double start, finish;
@@ -125,6 +125,15 @@ int main(int argc, char **argv)
 
     dt=timestep(P_table, matprops);
 
+#ifdef MULTI_PROC
+    loc_data[0] = dt;
+    loc_data[1] = (double) -ierr;
+    MPI_Allreduce (loc_data, glob_data, 2, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    if (glob_data[1]!=0)
+      MPI_Abort(MPI_COMM_WORLD, 666);
+    dt = glob_data[0];
+#endif
+
     timeprops->incrtime(&dt);
     if ( myid == 0 )
       cout << "Time-step: " << timeprops->step << " dt=" << dt
@@ -136,16 +145,19 @@ int main(int argc, char **argv)
 #endif
 
     // velocity gradients for density update
-    calc_gradients(P_table);
-
+    if (calc_gradients(P_table)!=0)
+    {
+      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
+      ierr = 1;
+    }
     // update momentum
     if ( mom_update (myid, P_table, BG_mesh, matprops, dt ) != 0 )
     {
       cerr << "Momentum update failed on proc" << myid << 
             " at time-step : " << timeprops->step << endl;
-      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 1);
+      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
       cerr << "Check outfile for proc" << myid <<" for errors."<<endl;
-      exit(1);
+      ierr = 2;
     }
 
 #ifdef MULTI_PROC
@@ -201,7 +213,7 @@ int main(int argc, char **argv)
     // apply boundary conditions
     if (apply_bcond(myid, P_table, BG_mesh, matprops, &Image_table))
     {
-      write_output(myid, numprocs, P_table, BG_mesh, timeprops, format);
+      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
       exit(1);
     }
 
