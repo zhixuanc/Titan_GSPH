@@ -79,8 +79,7 @@ int search_neighs (int myid, HashTable *P_table, HashTable *BG_mesh)
           if ( *(neigh_proc+i) > -1 )
           {
             neigh_bucket = (Bucket *) BG_mesh->lookup(neighbors[i]);
-            if ( !(neigh_bucket) && 
-                  (curr_bucket->get_bucket_type() == UNDERGROUND) )
+            if ( !(neigh_bucket) && (*(neigh_proc+i)!=myid) )
               continue;
             assert(neigh_bucket);
             vector<Key> plist2 = neigh_bucket->get_plist();
