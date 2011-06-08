@@ -38,7 +38,8 @@ using namespace std;
 
 #include "sph_header.h"
 
-#define CYLINDERICAL_PILE
+//#define CYLINDERICAL_PILE
+#define TRAPIZOIDAL_PILE
 
 void check_bnd_pt (double bndpt[], double mincrd[], 
                    double maxcrd[], double bndCoeff[])
@@ -56,7 +57,7 @@ void check_bnd_pt (double bndpt[], double mincrd[],
   return;
 }
 
-double  pile_shape (double crd[], double pcen[], 
+double pile_shape (double crd[], double pcen[],
                     double major, double minor, double hmax)
 {
   int i;
@@ -75,7 +76,13 @@ double  pile_shape (double crd[], double pcen[],
     return hmax;
   else 
     return 0;
-#elif defined PARABOLOID
+#elif defined TRAPIZOIDAL_PILE
+  double slope = 0.79543;
+  if ( (vec[0]>0) && (vec[0] < major) )
+    d = hmax - vec[0]*slope;
+  if ( d < 0. ) d = 0;
+  return d;
+#else
 #  ifdef THREE_D
   return (hmax - pow(vec[0]/major,2) - pow(vec[1]/minor,2));
 #  else
