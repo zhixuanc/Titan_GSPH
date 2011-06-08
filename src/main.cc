@@ -123,15 +123,17 @@ int main(int argc, char **argv)
     // search and update neighbors
     search_neighs(myid, P_table, BG_mesh);
 
+    // calculate time-step
     dt=timestep(P_table, matprops);
 
 #ifdef MULTI_PROC
+    // get-minimum time-step for multiproc run
     loc_data[0] = dt;
     loc_data[1] = (double) -ierr;
     MPI_Allreduce (loc_data, glob_data, 2, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    if (glob_data[1]!=0)
-      MPI_Abort(MPI_COMM_WORLD, 666);
     dt = glob_data[0];
+    if (glob_data[1]!=0)
+      MPI_Abort(MPI_COMM_WORLD, ierr);
 #endif
 
     timeprops->incrtime(&dt);
@@ -156,7 +158,7 @@ int main(int argc, char **argv)
       cerr << "Momentum update failed on proc" << myid << 
             " at time-step : " << timeprops->step << endl;
       write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
-      cerr << "Check outfile for proc" << myid <<" for errors."<<endl;
+      cerr << "Check outfile for proc " << myid <<" for errors."<<endl;
       ierr = 2;
     }
 
