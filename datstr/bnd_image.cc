@@ -74,7 +74,9 @@ void search_bnd_images(int myid, HashTable *P_table, HashTable *BG_mesh,
               if ( neigh_proc[i] > -1 )
               {
                 Bucket *buck_neigh = (Bucket *) BG_mesh->lookup(neighbors[i]);
-                if ( (buck_neigh) && (buck_neigh->get_bucket_type()==MIXED) )
+                if ( !(buck_neigh) && (neigh_proc[i]!=myid) )
+                  continue;
+                if ( buck_neigh->get_bucket_type() == MIXED )
                 {
                   double tmpdist = buck_neigh->get_bnddist(coord, tmpc);
                   if ( tmpdist < bnddist )
