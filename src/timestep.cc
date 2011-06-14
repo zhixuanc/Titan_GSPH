@@ -39,44 +39,24 @@ using namespace std;
 
 #include "constants.h"
 
-double timestep (HashTable *p_table, MatProps *matprops_ptr)
+double timestep (HashTable *P_table, MatProps *matprops_ptr)
 {
   int i,j,k;
-  int no_of_neighs;
   double xi[DIMENSION];
   double dt, temp;
-  vector<Key> neighs;
   
   dt = 1.0E+10; // Initialize to very high value 
-  HTIterator *itr = new HTIterator(p_table);
-  Particle *pi;
-  while ( (pi = (Particle *) itr->next()) )
-  {
-    if ( pi->is_real() )
+  HTIterator *itr = new HTIterator(P_table);
+  Particle *p_curr=NULL;
+  while ( (p_curr = (Particle *) itr->next()) )
+    if ( p_curr->is_real() )
     {
-      double c = matprops_ptr->sound_speed(pi->get_density());
-      for (i=0; i<DIMENSION; i++)
-        xi[i]=*(pi->get_coords()+i);
-      neighs=pi->get_neighs();
-      no_of_neighs=neighs.size();
-      for (j=0; j<no_of_neighs; j++)
-      {
-        Particle *pj = (Particle *) p_table->lookup(neighs[j]);
-        assert(pj);
-        if ( *pi == *pj )
-          continue;
-         
-	double d=0;
-        for (i=0; i<DIMENSION; i++)
-	  d += pow((xi[i]-*(pj->get_coords()+i)),2);
-
-	d = sqrt(d);
-	temp = pi->get_smlen()/c;
-	if ( temp < dt )
-	   dt = temp;
-      }
+      // calc speed of sound through the medium
+      double c = matprops_ptr->sound_speed(p_curr->get_density());
+      temp = p_curr->get_smlen()/c;
+      if ( temp < dt )
+        dt = temp;
     }
-  }
 
   // delete HT Iterator
   delete itr;
