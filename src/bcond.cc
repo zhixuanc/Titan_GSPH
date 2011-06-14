@@ -110,8 +110,7 @@ int apply_bcond(int myid, HashTable *P_table, HashTable *BG_mesh,
         if ( *(buck->get_neigh_proc()+i) > -1 )
         {
           Bucket *buck_neigh = (Bucket *) BG_mesh->lookup(neighbors[i]);
-          if ( !(buck_neigh) && 
-                (buck->get_bucket_type() == UNDERGROUND) )
+          if ( !(buck_neigh) && (*(buck->get_neigh_proc()+i)!=myid) )
             continue;
           assert(buck_neigh);
           // distance from the boundary

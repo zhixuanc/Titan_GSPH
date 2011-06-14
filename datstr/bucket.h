@@ -31,15 +31,6 @@ using namespace std;
 #include <properties.h>
 #include <pack_data.h>
 
-// boundary point structure
-//typedef struct
-//{
-//  double coord[DIMENSION];   
-//  double f_coef;
-//} BndPnt;
-
-
-
 // Bucket is a unit of background mesh
 class Bucket
 {
@@ -187,7 +178,7 @@ class Bucket
     bool contains(double pnt[])
     {
       for (int i=0; i<DIMENSION; i++)
-        if ((pnt[i] < mincrd[i]) || (pnt[i] > maxcrd[i]))
+        if ((pnt[i] < mincrd[i]) || (pnt[i] >= maxcrd[i]))
           return false;
       return true;
     }

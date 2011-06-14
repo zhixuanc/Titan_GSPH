@@ -131,6 +131,9 @@ int update_pos(int myid, HashTable *P_table, HashTable *BG_mesh,
               {
                 Key tmpkey = *(curr_bucket->get_neighbors()+i);
                 Bucket *neigh = (Bucket *) BG_mesh->lookup(tmpkey);
+                if ( !(neigh) && 
+                     (*(curr_bucket->get_neigh_proc()+i)!=myid) )
+                  continue;
                 assert(neigh);
                 if ( neigh->get_bucket_type() == MIXED )
                 {
@@ -163,7 +166,7 @@ int update_pos(int myid, HashTable *P_table, HashTable *BG_mesh,
               dir[i]=1;
               left_curr_bucket = true;
             }
-            else if ( pos[i] > maxcrd[i] )
+            else if ( pos[i] >= maxcrd[i] )
             {
               dir[i]=2;
               left_curr_bucket = true;

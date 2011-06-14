@@ -32,7 +32,8 @@ using namespace std;
 #include "constants.h"
 #include "sph_header.h"
 
-int calc_f_coef(HashTable *P_table, HashTable *BG_mesh, MatProps *matprops)
+int calc_f_coef(int myid, HashTable *P_table, 
+                HashTable *BG_mesh, MatProps *matprops)
 {
   int i, j, k, l;
   int count;
@@ -92,21 +93,20 @@ int calc_f_coef(HashTable *P_table, HashTable *BG_mesh, MatProps *matprops)
             wnorm  += mj*w/rhoj;
         }
         // look into neighbors
-        Key *nbuckets = curr_bucket->get_neighbors();
+        Key *neighbors = curr_bucket->get_neighbors();
         for ( j=0; j<NEIGH_SIZE; j++ )
           if ( *(curr_bucket->get_neigh_proc()+j) > -1 )
           {
-            Bucket *nb = (Bucket *) BG_mesh->lookup(nbuckets[j]);
-            if ( !(nb) && 
-                 (curr_bucket->get_bucket_type() == UNDERGROUND) )
+            Bucket *neigh = (Bucket *) BG_mesh->lookup(neighbors[j]);
+            if ( !(neigh) && 
+                 (*(curr_bucket->get_neigh_proc()+j) != myid) )
               continue;
-            assert(nb);
 
             // skip bucket totally below the boundary
-            if ( nb->get_bucket_type() == UNDERGROUND )
+            if ( neigh->get_bucket_type() == UNDERGROUND )
               continue;
 
-            plist = nb->get_plist();
+            plist = neigh->get_plist();
             // get contribution of each particle in the support
             for ( k=0; k < plist.size(); k++)
             {

@@ -50,6 +50,7 @@ Bucket::Bucket(unsigned *k, double *minx, double *maxx,
   bucket_type = buck_type;
   myprocess = myid;
   guest_flag = 0;
+  //active = false;
   active = false;
   boundary_type = bnd_type;
   real_part_flag = false;
@@ -273,7 +274,8 @@ double Bucket::get_bnddist(double pnt[], double intsct[])
           return HUGE_VAL;
       }
     default:
-      fprintf(stderr,"ERROR!!! Unknown boundary type in \"Bucket.cc\" \n");
+      fprintf(stderr,"ERROR!!! Unknown boundary ");
+      fprintf(stderr,"type %d in \"Bucket.cc\" \n", boundary_type);
       exit(1);
   }
 }
@@ -331,8 +333,7 @@ int Bucket::put_ghost_particles(HashTable *P_table,
 #endif
 
     int iend = DIMENSION-1;
-    if ( (seed[iend] > mincrd[iend]) &&
-         (seed[iend] < maxcrd[iend]) )
+    if ( this->contains(seed) )
     {
       // put particles
       for (k=0; k < DIMENSION-1; k++)

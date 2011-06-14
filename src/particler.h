@@ -32,6 +32,7 @@ using namespace std;
 
 //! calc f_coef
 int  calc_f_coef(
+                 int ,
                  HashTable *,
                  HashTable *,
                  MatProps *

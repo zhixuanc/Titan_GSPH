@@ -168,7 +168,7 @@ int main(int argc, char **argv)
 #endif
 
     // calc friction coef at the solid boundary
-    calc_f_coef(P_table, BG_mesh, matprops);
+    calc_f_coef(myid, P_table, BG_mesh, matprops);
 
     // smooth out density oscillations (if any)
     smooth_density(P_table);

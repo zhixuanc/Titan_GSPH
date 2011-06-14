@@ -147,8 +147,7 @@ mom_update (int myid, HashTable * P_table, HashTable * BG_mesh,
 	    if ( *(buck->get_neigh_proc()+i) > -1 )
 	    {
 	      Bucket *buck_neigh = (Bucket *) BG_mesh->lookup(neighbors[i]);
-              if ( !(buck_neigh) && 
-                   (buck->get_bucket_type()==UNDERGROUND) )
+              if (!(buck_neigh) && (*(buck->get_neigh_proc()+i)!=myid))
                 continue;
               assert(buck_neigh);
 	      if ( buck_neigh->get_bucket_type() == MIXED )
@@ -215,8 +214,7 @@ mom_update (int myid, HashTable * P_table, HashTable * BG_mesh,
 	    assert (pj);
 
 	    // self contribution is zero as dw(0)=0
-	    if (*pi == *pj)
-	      continue;
+	    if (*pi == *pj) continue;
 	    double dist = 0;
 	    for (i = 0; i < DIMENSION; i++)
 	    {
