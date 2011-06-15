@@ -43,7 +43,7 @@ if test "x$enable_parallel" != "xno"; then
   AC_DEFINE([MULTI_PROC],[],[build parallel code])
   AC_MSG_RESULT([yes])
   # skip the checks if using MPI compilers
-  if test "x$CXX" = "xmpic++" && test  "x$CXX" = "xmpicxx"; then
+  if test "x$CXX" = "xmpic++" || test  "x$CXX" = "xmpicxx"; then
       check_mpi='no'
   else
       check_mpi='yes'
@@ -53,34 +53,16 @@ else
   check_mpi=""
 fi
 
-# ---------------------------------------------------------------------------
-# Check for --enable-debug
-# ---------------------------------------------------------------------------
-AC_MSG_CHECKING([to enable debug build])
-AC_ARG_ENABLE(debug,
-              AS_HELP_STRING([--enable-debug],
-                             [enable debugging (disabled by default)]),
-              [HAVE_DEBUG=$enableval], [HAVE_DEBUG=yes])
-
-if test "x$enable_debug" = "xyes" ; then
-
-# Try to strip out optimization.
-  CXXFLAGS=`echo "$CXXFLAGS " | sed "s/-O2 //g"`
-  CFLAGS=`echo "$CFLAGS " | sed "s/-O2 //g"`
-  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-O //g"`
-  CFLAGS=`echo "$CFLAGS" | sed "s/-O //g"`
-
-# remove existing -g to avoid duplicates.
-  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-g //"`
-  CFLAGS=`echo "$CFLAGS" | sed "s/-g //"`
-
-#  -g and -DDEBUG
-  CXXFLAGS="$CXXFLAGS -O0 -g -DDEBUG"
-  CFLAGS="$CFLAGS -O0 -g -DDEBUG -Wall"
-
-  AC_MSG_RESULT([yes, modified CFLAGS="$CFLAGS"])
+# parallel-IO
+AC_ARG_ENABLE([parallel-IO],
+              AS_HELP_STRING([--enable-parallel-io],
+                       [enables single output file by all procs. Needs hardware support]))
+AC_MSG_CHECKING([enable parallel-IO])
+if test "x$enable_parallel_IO" = "xyes" && test "x$enable_parallel" != "xno"; then
+  AC_DEFINE([PARALLEL_IO], [], [support parallel-IO])
+  AC_MSG_RESULT([yes])
 else
-  AC_MSG_RESULT([no, CFLAGS="$CFLAGS"])
+  AC_MSG_RESULT([no])
 fi
 
 #-----------------------------------------------------------------------
@@ -128,11 +110,42 @@ if test "x$check_mpi" = "xyes"; then
     if test "x$mpich" = "xno"; then
         AC_CHECK_LIB([mpi],[MPI_Init],,[openmpi='no'])
     fi
-    if test "x$mpich" = "xno" -a "x$mpi" = "x$no"; then
+    if test "x$mpich" = "xno" -a "x$openmpi" = "x$no"; then
         AC_MSG_FAILURE([can't find any mpi library])
     fi
 fi
 AM_CONDITIONAL(PARALLEL_BUILD, test "x$enable_parallel" != "xno")
+
+# ---------------------------------------------------------------------------
+# Check for --enable-debug
+# ---------------------------------------------------------------------------
+AC_MSG_CHECKING([to enable debug build])
+AC_ARG_ENABLE(debug,
+              AS_HELP_STRING([--enable-debug],
+                             [enable debugging (disabled by default)]),
+              [HAVE_DEBUG=$enableval], [HAVE_DEBUG=yes])
+
+if test "x$enable_debug" = "xyes" ; then
+
+# Try to strip out optimization.
+  CXXFLAGS=`echo "$CXXFLAGS " | sed "s/-O2 //g"`
+  CFLAGS=`echo "$CFLAGS " | sed "s/-O2 //g"`
+  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-O //g"`
+  CFLAGS=`echo "$CFLAGS" | sed "s/-O //g"`
+
+# remove existing -g to avoid duplicates.
+  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-g //"`
+  CFLAGS=`echo "$CFLAGS" | sed "s/-g //"`
+
+#  -g and -DDEBUG
+  CXXFLAGS="$CXXFLAGS -O0 -g -DDEBUG"
+  CFLAGS="$CFLAGS -O0 -g -DDEBUG -Wall"
+
+  AC_MSG_RESULT([yes, modified CFLAGS="$CFLAGS"])
+else
+  AC_MSG_RESULT([no, CFLAGS="$CFLAGS"])
+fi
+
 # ---------------------------------------------------------------------------
 # Check for lapack
 # ---------------------------------------------------------------------------

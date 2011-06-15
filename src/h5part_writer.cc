@@ -46,7 +46,7 @@ using namespace std;
 
 void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepros)
 {
-  int i;
+  int i, j;
   vector<double> x, y, z, Vx , Vy, Vz, rho;
   char filename[18];
   static int step =0;
@@ -72,12 +72,11 @@ void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepro
 
   HTIterator *itr = new HTIterator(P_table);
   Particle *pi= NULL;
-
   int my_count = 0;
   while ((pi = (Particle *) itr->next()))
   {
 #ifdef PARALLEL_IO
-    if (! pi->is_guest() )
+    if (!pi->is_guest())
     {
 #endif
       rho.push_back(pi->get_density());
@@ -127,6 +126,7 @@ void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepro
   int    dims[2] = {size, 0};
   double *buf = new double[my_count];
   int    *ibuf = new int[my_count];
+
 #ifdef PARALLEL_IO
   j=0;
   int    start = id_lims[myid];
