@@ -48,12 +48,13 @@ double calc_std_deviation (double mean, double *load_arr, int size)
   return sqrt(variance/(double) size);
 }
 
-void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table, 
-                 HashTable* BG_mesh)
+int repartition(vector<BucketHead> *PartitionTable , HashTable* P_table, 
+                HashTable* BG_mesh)
 {
   int i, j, k;                           /* local variables */
   int num_local_objects;                 /* the number of objects this processor owns */
   double total_weight = 0;                /* the amount of work for all objects */
+  double dev0, dev1;
 
 #ifdef THREE_D
   int Up[DIMENSION] = {0, 0, 2};
@@ -67,7 +68,7 @@ void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   if ( numprocs < 2 )
-    return;
+    return 0;
 
   //printf("proc %d has entered the repartitioning scheme...\n",myid);
   
@@ -165,7 +166,7 @@ void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
   double my_ideal_share = avg_work*1.025;
 
   // calculcate initial imbalance
-  double dev0 = calc_std_deviation (avg_work, work_per_proc, numprocs);
+  dev0 = calc_std_deviation (avg_work, work_per_proc, numprocs);
 
   double my_work = 0;
   double residual_work = global_weight;
@@ -219,30 +220,32 @@ void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
   }
 
   // get imbalance 
-  double dev1 = calc_std_deviation (avg_work, gl_work_arr, numprocs);
+  dev1 = calc_std_deviation (avg_work, gl_work_arr, numprocs);
 
   // if can't do better than current distribution return
-  if (dev0 < dev1) 
-    return;
+  if (dev0 <= dev1) 
+  {
+    // clean up
+    delete [] proc_size_arr;
+    delete [] ind_arr;
+    delete [] loc_wght_arr;
+    delete [] gl_wght_arr;
+    delete [] gl_proc_arr;
+    delete [] gl_work_arr;
+    delete [] work_per_proc;
+    delete [] sfc_vertices;
+    return 0;
+  }
 
   for (i=ind_arr[myid], j=0; i < ind_arr[myid+1]; i++, j++ )
     sfc_vertices[j].destination_proc = gl_proc_arr[i];
-
-  
-  // clean up
-  delete [] proc_size_arr;
-  delete [] ind_arr;
-  delete [] loc_wght_arr;
-  delete [] gl_wght_arr;
-  delete [] gl_proc_arr;
-  delete [] gl_work_arr;
-  delete [] work_per_proc;
 
   // update current proc info
   for (i=0; i < num_local_objects; i++)
   {
     Key bkey = (*PartitionTable)[i].get_bucket();
     Bucket *Curr_buck = (Bucket *) BG_mesh->lookup(bkey);
+    assert(Curr_buck);
     Curr_buck->put_myprocess(sfc_vertices[i].destination_proc);
     do
     {
@@ -270,7 +273,15 @@ void repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
   // sort bucket-heads
   sort (PartitionTable->begin(), PartitionTable->end());
 
+  // clean up
+  delete [] proc_size_arr;
+  delete [] ind_arr;
+  delete [] loc_wght_arr;
+  delete [] gl_wght_arr;
+  delete [] gl_proc_arr;
+  delete [] gl_work_arr;
+  delete [] work_per_proc;
   delete [] sfc_vertices;
   delete itr;
-  return;
+  return 2;
 }
