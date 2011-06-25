@@ -62,6 +62,7 @@ void smooth_density (HashTable *P_table)
         // get the neighbors
 	Particle *pj= (Particle *) P_table->lookup(neighs[j]);
         assert(pj);
+        // guests are included ghosts are not
         if (!pj->is_ghost())
         {
           for (i=0; i<DIMENSION; i++)

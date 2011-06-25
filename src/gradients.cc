@@ -70,7 +70,15 @@ int calc_gradients(HashTable *P_table)
       for (j=0; j<num_neigh; j++)
       {
         Particle *pj = (Particle *) P_table->lookup(neighs[j]);
-        assert(pj);
+        if ( !pj )
+        {
+          printf("something wrong at:\n");
+          printf("pi: (%f, %f), pj: (%u, %u) \n",
+                  xi[0], xi[1], neighs[j].key[0], neighs[j].key[1]);
+          printf("neigh size: %d\n", num_neigh);
+          return (-2);
+        }
+
         if ( *pi == *pj ) continue;
         if ( pj->is_real() )
         {

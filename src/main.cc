@@ -44,7 +44,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-  int ierr=0;
+  int i, ierr=0;
   double dt;
   int added_ghosts;
   MatProps *matprops = new MatProps();
@@ -71,7 +71,8 @@ int main(int argc, char **argv)
   numprocs = 1;
   myid = 0;
 #endif
- 
+
+  extern void write_debug_info (int, HashTable *, int); 
 
   //Read input data
   if (Read_Data(matprops, timeprops, pileprops, fluxprops, &format) !=0)
@@ -167,11 +168,16 @@ int main(int argc, char **argv)
     move_data (numprocs, myid, P_table, BG_mesh);
 #endif
 
-    // calc friction coef at the solid boundary
-    calc_f_coef(myid, P_table, BG_mesh, matprops);
-
     // smooth out density oscillations (if any)
     smooth_density(P_table);
+
+#ifdef MULTI_PROC
+    // update guests on all procs
+    move_data (numprocs, myid, P_table, BG_mesh);
+#endif
+
+    // calc friction coef at the solid boundary
+    calc_f_coef(myid, P_table, BG_mesh, matprops);
 
     // update particle positions
     adapt = update_pos (myid, P_table, BG_mesh, fluxprops, timeprops, &lost);
@@ -199,7 +205,7 @@ int main(int argc, char **argv)
       delete_guest_buckets (BG_mesh, P_table);
 
       // repartition the domain
-      repartition (&partition_table, P_table, BG_mesh);
+      i = repartition (&partition_table, P_table, BG_mesh);
 
       // send new guests
       move_data (numprocs, myid, P_table, BG_mesh);
