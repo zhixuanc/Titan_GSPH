@@ -77,20 +77,23 @@ int calc_f_coef(int myid, HashTable *P_table,
         for (p_itr=plist.begin(); p_itr!=plist.end(); p_itr++)
         {
           Particle *pj = (Particle *) P_table->lookup(*p_itr);
-          hj = pj->get_smlen();
-          mj = pj->get_mass();
-          rhoj = pj->get_density();
-          for (l=0; l<DIMENSION; l++)
+          if (!pj->is_ghost())
           {
-            dx[l] = coord[l] - *(pj->get_coords()+l);
-            sj[l] = dx[l]/hj;
-            vel[l] = *(pj->get_vel()+l);
-          }
-          double w=weight(sj,hj);
-          // velocity parallel to the boundary
-          double vel_dot_n = vel[0]*cost + vel[1]*sint;
-          f_coef[count] -= mj*beta*vel_dot_n*w/rhoj;
+            hj = pj->get_smlen();
+            mj = pj->get_mass();
+            rhoj = pj->get_density();
+            for (l=0; l<DIMENSION; l++)
+            {
+              dx[l] = coord[l] - *(pj->get_coords()+l);
+              sj[l] = dx[l]/hj;
+              vel[l] = *(pj->get_vel()+l);
+            }
+            double w=weight(sj,hj);
+            // velocity parallel to the boundary
+            double vel_dot_n = vel[0]*cost + vel[1]*sint;
+            f_coef[count] -= mj*beta*vel_dot_n*w/rhoj;
             wnorm  += mj*w/rhoj;
+          }
         }
         // look into neighbors
         Key *neighbors = curr_bucket->get_neighbors();
@@ -111,7 +114,7 @@ int calc_f_coef(int myid, HashTable *P_table,
             for ( k=0; k < plist.size(); k++)
             {
               Particle *pj = (Particle *) P_table->lookup(plist[k]);
-              if ( pj->is_real() )
+              if ( !pj->is_ghost() )
               {
                 hj = pj->get_smlen();
                 mj = pj->get_mass();

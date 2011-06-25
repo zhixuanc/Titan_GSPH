@@ -77,7 +77,7 @@ int move_bnd_images(
     );
 
 //! repartion the domain if load-balance has changed
-void repartition(
+int  repartition(
      //! STL vector of Partition Table Keys
      vector<BucketHead> *,
      //! Hash-Table of SPH particles
