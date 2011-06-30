@@ -69,7 +69,7 @@ hid_t GH5_fopen (const char *filename, char mode)
         exit(0);
       }
       break;
-    defaut:
+    default:
       fprintf(stderr,"GH5 ERROR: Unknown file access option, EXITING\n");
       exit(1);
   }
@@ -114,7 +114,7 @@ hid_t GH5_fopen_parallel(const char *filename, char mode)
         exit(0);
       }
       break;
-    defaut:
+    default:
       fprintf(stderr,"GH5 ERROR: Unknown file access option, EXITING\n");
       exit(1);
   }

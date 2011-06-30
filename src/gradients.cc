@@ -80,7 +80,7 @@ int calc_gradients(HashTable *P_table)
         }
 
         if ( *pi == *pj ) continue;
-        if ( pj->is_real() )
+        if ( !pj->is_ghost() )
         {
           const double *xj = pj->get_coords();
           for (i=0; i<DIMENSION; i++)
