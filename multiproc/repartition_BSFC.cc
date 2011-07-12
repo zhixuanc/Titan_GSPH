@@ -55,7 +55,7 @@ int repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
   int num_local_objects;                 /* the number of objects this processor owns */
   double total_weight = 0;                /* the amount of work for all objects */
   double dev0, dev1;
-
+  const double TINY=0.1e-4;
 #ifdef THREE_D
   int Up[DIMENSION] = {0, 0, 2};
   int Down[DIMENSION] = {0, 0, 1};
@@ -183,7 +183,7 @@ int repartition(vector<BucketHead> *PartitionTable , HashTable* P_table,
     while ( (curr_proc >= 0) && (i >= 0) )
     {
       temp = my_work + gl_wght_arr[i];
-      if ( temp < my_ideal_share )
+      if ( (temp < my_ideal_share) || (my_work < TINY) )
       {
         my_work = temp;
         residual_work -= gl_wght_arr[i];

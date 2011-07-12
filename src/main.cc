@@ -244,7 +244,12 @@ int main(int argc, char **argv)
   if ( myid == 0 )
   {
     printf("A total of %d SPH Particles were lost.\n", lostsum);
-    printf("Computation time for a %d proc run was %f.\n", numprocs,finish-start);
+    double walltime = finish - start;
+    int    hours = (int) (walltime/3600.);
+    int    mins  = (int) ((walltime - hours*3600)/60);
+    double secs  = walltime - (hours*3600) - (mins*60);
+    printf("Computation time for a %d proc run was %d:%02d:%f\n",
+            numprocs, hours, mins, secs);
   }
 
   return 0;

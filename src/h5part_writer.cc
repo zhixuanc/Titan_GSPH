@@ -51,6 +51,7 @@ void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepro
   char filename[18];
   static int step =0;
   hid_t fp;
+  herr_t ierr;
 #ifdef PARALLEL_IO
   sprintf(filename,"pvplot_out.h5part");
 #else
@@ -58,17 +59,9 @@ void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepro
 #endif
 
   if ( timepros->ifstart() )
-#ifdef PARALLEL_IO
-    fp = GH5_fopen_parallel (filename, 'w');
-#else
     fp = GH5_fopen( filename, 'w');
-#endif
   else
-#ifdef PARALLEL_IO
-    fp = GH5_fopen_parallel (filename, 'a'); 
-#else
     fp = GH5_fopen (filename,'a');
-#endif
 
   HTIterator *itr = new HTIterator(P_table);
   Particle *pi= NULL;
@@ -101,7 +94,12 @@ void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepro
 
   hid_t gid = GH5_gopen(fp, group, 'w'); 
 
-  int size;
+  int start;
+  int size = 0;
+  int *id_lims = new int [numproc+1];
+  for (i=0; i<numproc+1; i++)
+    id_lims[i]=0;
+
 #ifdef PARALLEL_IO
   // make space to recv num of particles on all proc
   int *size_arr = new int [numproc];
@@ -112,99 +110,71 @@ void write_h5part (int myid, int numproc, HashTable *P_table, TimeProps *timepro
   MPI_Allgather(&my_count, 1, MPI_INT, size_arr, 1, MPI_INT, MPI_COMM_WORLD);
 
   // create array index partitons
-  int *id_lims = new int [numproc+1];
   id_lims[0] = 0;
   for (i=1; i<numproc+1; i++)
     id_lims[i] = id_lims[i-1] + size_arr[i-1];
+  start = id_lims[myid];
 
   // get problem size by adding up     
   for (i=0; i<numproc; i++)
     size += size_arr[i];
+
+  delete [] size_arr;
 #else
   size = my_count;
+  id_lims[myid]=0;
+  id_lims[myid+1]=size;
 #endif
-  int    dims[2] = {size, 0};
+  int dims[2] = {size, 0};
   double *buf = new double[my_count];
   int    *ibuf = new int[my_count];
 
-#ifdef PARALLEL_IO
   j=0;
-  int    start = id_lims[myid];
   for (i=id_lims[myid]; i<id_lims[myid+1]; i++)
   {
     ibuf[j] = i;
     j++;
   }
-  GH5_par_writedata(gid, "ID",dims, ibuf, start, my_count);
+  ierr = GH5_Write (gid, "ID", dims, (void *) ibuf, start, my_count, INTTYPE);
  
   copy(x.begin(), x.end(), buf);
-  GH5_par_writedata(gid, "x", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "x", dims, (void *) buf, start, my_count, DOUBLETYPE);
 
   copy(y.begin(), y.end(), buf);
-  GH5_par_writedata(gid, "y", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "y", dims, (void *) buf, start, my_count, DOUBLETYPE);
 
   copy(rho.begin(), rho.end(), buf);
-  GH5_par_writedata(gid, "Rho", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "Rho", dims, (void *) buf, start, my_count, DOUBLETYPE);
 
   copy(Vx.begin(), Vx.end(), buf);
-  GH5_par_writedata(gid, "Vx", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "Vx", dims, (void *) buf, start, my_count, DOUBLETYPE);
 
   copy(Vy.begin(), Vy.end(), buf);
-  GH5_par_writedata(gid, "Vy", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "Vy", dims, (void *) buf, start, my_count, DOUBLETYPE);
 
 # ifdef THREE_D
   copy(z.begin(), z.end(), buf);
-  GH5_par_writedata(gid, "z", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "z", dims, (void *) buf, start, my_count, DOUBLETYPE);
 
   copy(Vz.begin(), Vz.end(), buf);
-  GH5_par_writedata(gid, "Vz", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "Vz", dims, (void *) buf, start, my_count, DOUBLETYPE);
 # else
   copy(z.begin(), z.end(), buf);
-  GH5_par_writedata(gid, "z", dims, buf, start, my_count);
+  ierr = GH5_Write (gid, "z", dims, (void *) buf, start, my_count, DOUBLETYPE);
 # endif // THREE_D
 
   // close file and group
-  GH5_gclose(gid);
-  GH5_fclose(fp);
+  ierr = GH5_gclose(gid);
 
-// if particler is not built with parallel-io support
-#else
-  for (i=0; i<size; i++)
-    ibuf[i] = i;
-  GH5_writedata(gid, "ID",dims, ibuf);
- 
-  copy(x.begin(), x.end(), buf);
-  GH5_writedata(gid, "x", dims, buf);
+  // flush output 
+  ierr = H5Fflush(fp, H5F_SCOPE_LOCAL);
+  ierr = H5Fclose(fp);
 
-  copy(y.begin(), y.end(), buf);
-  GH5_writedata(gid, "y", dims, buf);
-
-  copy(rho.begin(), rho.end(), buf);
-  GH5_writedata(gid, "Rho", dims, buf);
-
-  copy(Vx.begin(), Vx.end(), buf);
-  GH5_writedata(gid, "Vx", dims, buf);
-
-  copy(Vy.begin(), Vy.end(), buf);
-  GH5_writedata(gid, "Vy", dims, buf);
-
-# ifdef THREE_D
-  copy(z.begin(), z.end(), buf);
-  GH5_writedata(gid, "z", dims, buf);
-
-  copy(Vz.begin(), Vz.end(), buf);
-  GH5_writedata(gid, "Vz", dims, buf);
-# else
-  copy(z.begin(), z.end(), buf);
-  GH5_writedata(gid, "z", dims, buf);
-# endif 
-  GH5_gclose(gid);
-  GH5_fclose(fp);
-#endif // PARALLEL_IO
 
   // free memory
-  delete []buf;
-  delete []ibuf;
+  delete [] id_lims;
+  delete [] buf;
+  delete [] ibuf;
   delete itr;
 
   return;

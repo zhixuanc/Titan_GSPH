@@ -1,4 +1,5 @@
 #! /bin/bash
+module purge
 . /util/Modules/3.1.6/init/bash
 module load hdf/5-1.8.6-impi
 export CXX=mpiicpc

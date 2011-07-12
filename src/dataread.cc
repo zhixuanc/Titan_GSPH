@@ -154,7 +154,7 @@ int Read_Grid(HashTable **P_table, HashTable **BG_mesh,
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 #endif
   sprintf(filename,"funky%04d.h5", myid);
-  hid_t fp=GH5_fopen(filename, 'r');
+  hid_t fp=GH5_fopen_serial (filename, 'r');
   
   // Read Hash table constants
   GH5_readdata(fp,"/hashtable_constants",hvars);

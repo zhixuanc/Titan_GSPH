@@ -26,8 +26,28 @@
 #include <hdf5.h>
 #include <buckstr.h>
 
-hid_t GH5_fopen (const char *filename, char mode);
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#ifdef PARALLEL_IO
+# define GH5_fopen GH5_fopen_parallel
+# define GH5_Write GH5_WriteP
+#else
+# define GH5_fopen GH5_fopen_serial
+# define GH5_Write GH5_WriteS
+#endif
+
+// datatype flags 
+const int INTTYPE=1;
+const int UINTTYPE=2;
+const int FLOATTYPE=3;
+const int DOUBLETYPE=4;
+const int CHARTYPE=5;
+
+hid_t GH5_fopen_serial (const char *filename, char mode);
 hid_t GH5_fopen_parallel (const char *filename, char mode);
+
 inline herr_t GH5_fclose(hid_t fp) { return(H5Fclose(fp)); }
 inline herr_t GH5_gclose(hid_t id) { return(H5Gclose(id)); }
 
@@ -40,18 +60,18 @@ hid_t GH5_cellstruct ();
 herr_t GH5_readdata(hid_t fp, const char *fullpath, double *);
 herr_t GH5_readdata(hid_t fp, const char *fullpath, int *);
 herr_t GH5_readdata(hid_t fp, const char *fullpath, unsigned *);
+
+// read grid data
 herr_t GH5_read_grid_data(hid_t fp, const char *path, BucketStruct *c);
 
-
-// Overloaded data write functions
-herr_t GH5_writedata (hid_t fp, const char *path, int *dims, double *buf);
-herr_t GH5_writedata (hid_t fp, const char *path, int *dims, int *buf);
-herr_t GH5_writedata (hid_t fp, const char *path, int *dims, unsigned *buf);
+// wirte grid data
 herr_t GH5_write_grid_data (hid_t fp, const char *path, int size, BucketStruct *c);
 
+// wirte serial data
+herr_t GH5_WriteS (hid_t , const char *, int *, void *, int, int, const int);
+
 // write parallel data
-herr_t GH5_par_writedata (hid_t fp, const char *path, int *dims, double *buf, int, int);
-herr_t GH5_par_writedata (hid_t fp, const char *path, int *dims, int *buf, int, int);
-herr_t GH5_par_writedata (hid_t fp, const char *path, int *dims, unsigned *buf, int, int);
+herr_t GH5_WriteP (hid_t , const char *, int *, void *, int, int, const int);
+
 
 #endif // HDF5CALL_H

@@ -878,6 +878,8 @@ Optional Features:
   --enable-dependency-tracking   do not reject slow dependency extractors
   --disable-3d            build 2-d code, instead of default 3-d
   --enable-parallel       builds parallel code, requires some MPI installtion
+  --enable-parallel-IO    enables single output file by all procs. Needs
+                          hardware support
   --enable-debug          enable debugging (disabled by default)
 
 Optional Packages:
@@ -3831,7 +3833,7 @@ _ACEOF
   echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
   # skip the checks if using MPI compilers
-  if test "x$CXX" = "xmpic++" && test  "x$CXX" = "xmpicxx"; then
+  if test "x$CXX" = "xmpic++" || test  "x$CXX" = "xmpicxx"; then
       check_mpi='no'
   else
       check_mpi='yes'
@@ -3842,40 +3844,25 @@ echo "${ECHO_T}no" >&6
   check_mpi=""
 fi
 
-# ---------------------------------------------------------------------------
-# Check for --enable-debug
-# ---------------------------------------------------------------------------
-echo "$as_me:$LINENO: checking to enable debug build" >&5
-echo $ECHO_N "checking to enable debug build... $ECHO_C" >&6
-# Check whether --enable-debug or --disable-debug was given.
-if test "${enable_debug+set}" = set; then
-  enableval="$enable_debug"
-  HAVE_DEBUG=$enableval
-else
-  HAVE_DEBUG=yes
+# parallel-IO
+# Check whether --enable-parallel-IO or --disable-parallel-IO was given.
+if test "${enable_parallel_IO+set}" = set; then
+  enableval="$enable_parallel_IO"
+
 fi;
+echo "$as_me:$LINENO: checking enable parallel-IO" >&5
+echo $ECHO_N "checking enable parallel-IO... $ECHO_C" >&6
+if test "x$enable_parallel_IO" = "xyes" && test "x$enable_parallel" != "xno"; then
 
-if test "x$enable_debug" = "xyes" ; then
+cat >>confdefs.h <<\_ACEOF
+#define PARALLEL_IO
+_ACEOF
 
-# Try to strip out optimization.
-  CXXFLAGS=`echo "$CXXFLAGS " | sed "s/-O2 //g"`
-  CFLAGS=`echo "$CFLAGS " | sed "s/-O2 //g"`
-  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-O //g"`
-  CFLAGS=`echo "$CFLAGS" | sed "s/-O //g"`
-
-# remove existing -g to avoid duplicates.
-  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-g //"`
-  CFLAGS=`echo "$CFLAGS" | sed "s/-g //"`
-
-#  -g and -DDEBUG
-  CXXFLAGS="$CXXFLAGS -O0 -g -DDEBUG"
-  CFLAGS="$CFLAGS -O0 -g -DDEBUG -Wall"
-
-  echo "$as_me:$LINENO: result: yes, modified CFLAGS=\"$CFLAGS\"" >&5
-echo "${ECHO_T}yes, modified CFLAGS=\"$CFLAGS\"" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 else
-  echo "$as_me:$LINENO: result: no, CFLAGS=\"$CFLAGS\"" >&5
-echo "${ECHO_T}no, CFLAGS=\"$CFLAGS\"" >&6
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
 fi
 
 #-----------------------------------------------------------------------
@@ -4955,7 +4942,7 @@ else
 fi
 
     fi
-    if test "x$mpich" = "xno" -a "x$mpi" = "x$no"; then
+    if test "x$mpich" = "xno" -a "x$openmpi" = "x$no"; then
         { { echo "$as_me:$LINENO: error: can't find any mpi library
 See \`config.log' for more details." >&5
 echo "$as_me: error: can't find any mpi library
@@ -4971,6 +4958,43 @@ if test "x$enable_parallel" != "xno"; then
 else
   PARALLEL_BUILD_TRUE='#'
   PARALLEL_BUILD_FALSE=
+fi
+
+
+# ---------------------------------------------------------------------------
+# Check for --enable-debug
+# ---------------------------------------------------------------------------
+echo "$as_me:$LINENO: checking to enable debug build" >&5
+echo $ECHO_N "checking to enable debug build... $ECHO_C" >&6
+# Check whether --enable-debug or --disable-debug was given.
+if test "${enable_debug+set}" = set; then
+  enableval="$enable_debug"
+  HAVE_DEBUG=$enableval
+else
+  HAVE_DEBUG=yes
+fi;
+
+if test "x$enable_debug" = "xyes" ; then
+
+# Try to strip out optimization.
+  CXXFLAGS=`echo "$CXXFLAGS " | sed "s/-O2 //g"`
+  CFLAGS=`echo "$CFLAGS " | sed "s/-O2 //g"`
+  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-O //g"`
+  CFLAGS=`echo "$CFLAGS" | sed "s/-O //g"`
+
+# remove existing -g to avoid duplicates.
+  CXXFLAGS=`echo "$CXXFLAGS" | sed "s/-g //"`
+  CFLAGS=`echo "$CFLAGS" | sed "s/-g //"`
+
+#  -g and -DDEBUG
+  CXXFLAGS="$CXXFLAGS -O0 -g -DDEBUG"
+  CFLAGS="$CFLAGS -O0 -g -DDEBUG -Wall"
+
+  echo "$as_me:$LINENO: result: yes, modified CFLAGS=\"$CFLAGS\"" >&5
+echo "${ECHO_T}yes, modified CFLAGS=\"$CFLAGS\"" >&6
+else
+  echo "$as_me:$LINENO: result: no, CFLAGS=\"$CFLAGS\"" >&5
+echo "${ECHO_T}no, CFLAGS=\"$CFLAGS\"" >&6
 fi
 
 # ---------------------------------------------------------------------------

@@ -25,13 +25,14 @@
 
 const int HYBRID = 0x3;
 
-const double Slope = 0.795436;     // -38.5
-const double Intcpt =-0.5742976;   // webb's exp
+const double inc_angle = 0.41888;     // 24 deg
+const double Slope  = 0.4452; // tan(24)
+const double Intcpt = 0.24;   // wess's exp
 
 const double Radius = 0.08;
 const double xCen   = 0.8;
 
-double GIS_get_elevation (double , int *);
+double GIS_get_elevation (double , int *, double );
 int    Get_xmin(double *);
 int    Get_xmax(double *);
 int    Get_ymin(double *);

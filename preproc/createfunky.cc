@@ -59,7 +59,7 @@ void createfunky(int np, int nhtvars, double *htvars,
   for (i=0; i < np; i++ )
   {
     string fname = create_filename (basename, exten, padding, i);
-    fp[i] = GH5_fopen(fname.c_str(),'w');
+    fp[i] = GH5_fopen_serial (fname.c_str(),'w');
   }
 
 
@@ -67,7 +67,7 @@ void createfunky(int np, int nhtvars, double *htvars,
   {
     // write HASH TABLE constants
     int dims1[2]={nhtvars,0};
-    GH5_writedata(fp[i] ,"/hashtable_constants", dims1, htvars);
+    GH5_WriteS (fp[i] ,"/hashtable_constants", dims1, (void *) htvars, 0, 0, DOUBLETYPE);
 
     // copy cells for each proc
     int size2=0, ibuck = 0;

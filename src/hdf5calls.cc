@@ -37,7 +37,7 @@
 
 const int HDF5_FAIL = -1;
 
-hid_t GH5_fopen (const char *filename, char mode)
+hid_t GH5_fopen_serial (const char *filename, char mode)
 {
   hid_t fp;
   switch (mode)
@@ -180,50 +180,8 @@ hid_t GH5_gopen(hid_t fp, const char *name, char mode)
    return group_id;
 }
 
-// General fucntion to create dataset
-hid_t GH5_createdataset(hid_t gid, hid_t dataspace, const char *dsetname, unsigned type)
-{
-   hid_t dataset, datatype;
 
-   // set datatype
-   switch (type)
-   {
-      case 1:
-	datatype=H5Tcopy(H5T_NATIVE_INT);
-	break;
-      case 2:
-        datatype=H5Tcopy(H5T_NATIVE_UINT);
-        break;
-      case 3:
-	datatype=H5Tcopy(H5T_NATIVE_FLOAT);
-	break;
-      case 4:
-	datatype=H5Tcopy(H5T_NATIVE_DOUBLE);
-	break;
-      case 5:
-	datatype=H5Tcopy(H5T_NATIVE_CHAR);
-	break;
-      default:
-	fprintf(stderr,"GH5 ERROR, Unkown datatype passed to dataset %s\n",dsetname);
-	exit(1);
-   }
-#ifdef H5_USE_16_API
-   dataset=H5Dcreate(gid, dsetname, datatype, dataspace, H5P_DEFAULT);
-#else
-   dataset=H5Dcreate(gid, dsetname, datatype, dataspace, 
-                     H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT);
-#endif
-   //Not expecting this error
-   if (dataset<0)
-   {
-      fprintf(stderr,"GH5 ERROR: Failed to create dataset %s\n",dsetname);
-      exit(1);
-   }
-   return dataset;
-}
-
-
-// New HDF5 datatype for buckets
+// New HDF5 data type for buckets
 hid_t GH5_bucketstruct()
 {
   hid_t newtype;
@@ -330,88 +288,49 @@ herr_t GH5_read_grid_data (hid_t fp, const char *path, BucketStruct *buf)
 }
 
 
-herr_t GH5_writedata(hid_t fp, const char *path, int *dims, double *buf)
+
+herr_t GH5_WriteS (hid_t fp, const char *path, int dims[], void *buf,
+                   int unused1, int unused2, const int DATAYPE)
 {
    hid_t data_id;
    hid_t space_id;
-   hsize_t size[2];
    herr_t status;
+   hsize_t size[2] = {dims[0], dims[1]};
 
-   size[0]=*dims;
-   size[1]=*(dims + 1);
    //create data spaces
    space_id=H5Screate_simple(1, size, 0);
    
    //create dataset for the buffer
-   data_id=GH5_createdataset(fp , space_id, path, 4);
-
-   //write data
-   status=H5Dwrite(data_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
-
-   //close dataset and dataspcae
-   status=H5Dclose(data_id);
-   if ( status > 0 )
+   hid_t data_type;
+   switch (DATAYPE)
    {
-     return status;
+     case INTTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_INT);
+       break;
+     case UINTTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_UINT);
+       break;
+     case FLOATTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_FLOAT);
+       break;
+     case DOUBLETYPE:
+       data_type = H5Tcopy(H5T_NATIVE_DOUBLE);
+       break;
+     case CHARTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_CHAR);
+       break;
+     default:
+       fprintf(stderr,"ERROR: unknown data type in %s.\n",__FILE__);
+       exit(1);
    }
-   status=H5Sclose(space_id);
 
-   return status;
-}
-
-
-herr_t GH5_writedata(hid_t fp, const char *path, int *dims, int *buf)
-{
-   hid_t data_id;
-   hid_t space_id;
-   hsize_t size[2];
-   herr_t status;
-
-   // data is stored 1-D array in row-major order
-   size[0]=*dims;
-   size[1]=*(dims + 1);
-   //create data spaces
-   space_id=H5Screate_simple(1, size, 0);
-   
-   //create dataset for the buffer
-   data_id=GH5_createdataset(fp , space_id, path, 1);
-
+#ifdef H5_USE_16_API
+   data_id = H5Dcreate (fp, path, data_type, space_id, H5P_DEFAULT);
+#else
+   data_id = H5Dcreate (fp, path, data_type, space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#endif
    //write data
-   status=H5Dwrite(data_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
-
-   //close dataset and dataspcae
-   status=H5Dclose(data_id);
-   if ( status > 0 )
-   {
-     return status;
-   }
-   status=H5Sclose(space_id);
-
-   return status;
-}
-
-herr_t GH5_writedata(hid_t fp, const char *path, int *dims, unsigned *buf)
-{
-   hid_t data_id;
-   hid_t space_id;
-   hsize_t size[2];
-   herr_t status;
-   
-   // data is stored 1-D array in row-major order
-   size[0]=*dims;
-   size[1]=*(dims + 1);
-
-   //create data spaces
-   if ( size[1] == 0 )
-     space_id=H5Screate_simple(1, size, 0);
-   else
-     space_id=H5Screate_simple(2, size, 0);
-   
-   //create dataset for the buffer
-   data_id=GH5_createdataset(fp , space_id, path, 2);
-
-   //write data
-   status=H5Dwrite(data_id, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+   status=H5Dwrite(data_id, data_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
 
    //close dataset and dataspcae
    status=H5Dclose(data_id);
@@ -426,156 +345,73 @@ herr_t GH5_writedata(hid_t fp, const char *path, int *dims, unsigned *buf)
 
 
 #ifdef PARALLEL_IO
-herr_t GH5_par_writedata (hid_t fp, const char *path, int *dims, 
-                          double *buf, int start_in, int count_in)
+herr_t GH5_WriteP (hid_t fp, const char *path, int dims[], void *buf,
+                   int start_in, int count_in, const int DATAYPE)
 {
    hid_t data_id;
    hid_t space_id;
-   hsize_t size[2];
+   hsize_t size[2] = {dims[0], dims[1]};
    hsize_t start[2] = {start_in, 0};
    hsize_t count[2] = {count_in, 0};
-   hsize_t stride[2] = {1,1};
    herr_t status;
-
-   size[0]=*dims;
-   size[1]=*(dims + 1);
 
    //create data spaces
    space_id=H5Screate_simple(1, size, NULL);
    
    //create dataset for the buffer
-   data_id=GH5_createdataset(fp , space_id, path, 4);
-
-   // create file dataspace independently
-   hid_t file_space = H5Dget_space (data_id);
-
-   // set offsets for the file
-   status = H5Sselect_hyperslab(file_space, H5S_SELECT_SET, 
-                                start, stride, count, NULL);
-   assert(status != HDF5_FAIL);
-
-   // create memory dataspace independently
-   hid_t mem_space = H5Screate_simple(1, count, NULL);
-
-   //write data
-   hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
-   H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-   status=H5Dwrite(data_id, H5T_NATIVE_DOUBLE, mem_space, file_space, plist_id, buf);
-   
-   // close properties id
-   H5Pclose(plist_id);
-
-   //close dataset and dataspcae
-   H5Sclose(mem_space);
-   H5Sclose(file_space);
-   status=H5Dclose(data_id);
-   if ( status != 0 )
+   hid_t data_type;
+   switch (DATAYPE)
    {
-     return status;
+     case INTTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_INT);
+       break;
+     case UINTTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_UINT);
+       break;
+     case FLOATTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_FLOAT);
+       break;
+     case DOUBLETYPE:
+       data_type = H5Tcopy(H5T_NATIVE_DOUBLE);
+       break;
+     case CHARTYPE:
+       data_type = H5Tcopy(H5T_NATIVE_CHAR);
+       break;
+     default:
+       fprintf(stderr,"ERROR: Unknown dataype in %s\n", __FILE__);
+       exit(13);
    }
-   status=H5Sclose(space_id);
-
-   return status;
-}
-
-herr_t GH5_par_writedata(hid_t fp, const char *path, int *dims, 
-                         int *buf, int start_in, int count_in)
-{
-   hid_t data_id;
-   hid_t space_id;
-   hsize_t size[2];
-   hsize_t start[2] = {start_in, 0};
-   hsize_t count[2] = {count_in, 0};
-   hsize_t stride[2] = {1,1};
-   herr_t status;
-
-   // data is stored 1-D array in row-major order
-   size[0]=*dims;
-   size[1]=*(dims + 1);
-   //create data spaces
-   space_id=H5Screate_simple(1, size, 0);
-   
-   //create dataset for the buffer
-   data_id=GH5_createdataset(fp , space_id, path, 1);
+#ifdef H5_USE_16_API
+   data_id = H5Dcreate (fp, path, data_type, space_id, H5P_DEFAULT);
+#else
+   data_id = H5Dcreate (fp, path, data_type, space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#endif
 
    // create file dataspace independently
    hid_t file_space = H5Dget_space (data_id);
+   assert(file_space != HDF5_FAIL);
 
    // set offsets for the file
-   status = H5Sselect_hyperslab(file_space, H5S_SELECT_SET, 
-                                start, stride, count, NULL);
+   status = H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL, count, NULL);
    assert(status != HDF5_FAIL);
+
+   // create property list for write
+   hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
 
    // create memory dataspace independently
    hid_t mem_space = H5Screate_simple(1, count, NULL);
 
-   //write data
-   hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
-   H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-   status=H5Dwrite(data_id, H5T_NATIVE_INT, mem_space, file_space, plist_id, buf);
-   
-   // close properties id
-   H5Sclose(mem_space);
-   H5Sclose(file_space);
-   H5Pclose(plist_id);
+   // write data, data size is non-zero
+   if ( count_in > 0 )
+     status=H5Dwrite(data_id, data_type, mem_space, file_space, plist_id, buf);
 
    //close dataset and dataspcae
-   status=H5Dclose(data_id);
-   if ( status != 0 )
-   {
-     return status;
-   }
-   status=H5Sclose(space_id);
-
-   return status;
-}
-
-herr_t GH5_par_writedata(hid_t fp, const char *path, int *dims, 
-                         unsigned *buf, int start_in, int count_in)
-{
-   hid_t data_id;
-   hid_t space_id;
-   hsize_t size[2];
-   hsize_t start[2] = {start_in, 0};
-   hsize_t count[2] = {count_in, 0};
-   hsize_t stride[2] = {1,1};
-   herr_t status;
-   
-   // data is stored 1-D array in row-major order
-   size[0]=*dims;
-   size[1]=*(dims + 1);
-
-   //create data spaces
-   if ( size[1] == 0 )
-     space_id=H5Screate_simple(1, size, 0);
-   else
-     space_id=H5Screate_simple(2, size, 0);
-   
-   //create dataset for the buffer
-   data_id=GH5_createdataset(fp , space_id, path, 2);
-
-   // create file dataspace independently
-   hid_t file_space = H5Dget_space (data_id);
-
-   // set offsets for the file
-   status = H5Sselect_hyperslab(file_space, H5S_SELECT_SET, 
-                                start, stride, count, NULL);
-   assert(status != HDF5_FAIL);
-
-   // create memory dataspace independently
-   hid_t mem_space = H5Screate_simple(1, count, NULL);
-
-   //write data
-   hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
-   H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-   status=H5Dwrite(data_id, H5T_NATIVE_UINT, mem_space, mem_space, plist_id, buf);
-
-   // close properties id
    H5Sclose(mem_space);
    H5Sclose(file_space);
+
+   // close properties id
    H5Pclose(plist_id);
- 
-   //close dataset and dataspcae
+
    status=H5Dclose(data_id);
    if ( status != 0 )
    {
@@ -599,12 +435,11 @@ herr_t GH5_write_grid_data(hid_t fp, const char *path, int size, BucketStruct *b
   // new dataype id
   structid = GH5_bucketstruct();
 
-  // create datatype
+  // create data type
 #ifdef H5_USE_16_API
   dataset = H5Dcreate(fp, path, structid, space, H5P_DEFAULT);
 #else
-   dataset=H5Dcreate(fp, path, structid, space, 
-                     H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT);
+  dataset=H5Dcreate(fp, path, structid, space, H5P_DEFAULT,H5P_DEFAULT, H5P_DEFAULT);
 #endif
 
   // write data to file

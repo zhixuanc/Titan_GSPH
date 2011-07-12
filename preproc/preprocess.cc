@@ -209,8 +209,8 @@ int main(int argc, char *argv[])
     double zcen;
     xcrd[0] = mindom[0] + i*del;
     xcrd[1] = mindom[0] + (i+1)*del;
-    zcrd[0] = GIS_get_elevation(xcrd[0], &pt1);
-    zcrd[1] = GIS_get_elevation(xcrd[1], &pt2);
+    zcrd[0] = GIS_get_elevation(xcrd[0], &pt1, smlen);
+    zcrd[1] = GIS_get_elevation(xcrd[1], &pt2, smlen);
     n1 = (int) ((zcrd[0] - mindom[1])/del);
     n2 = (int) ((zcrd[1] - mindom[1])/del);
 

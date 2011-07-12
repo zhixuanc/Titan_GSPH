@@ -55,7 +55,7 @@ fi
 
 # parallel-IO
 AC_ARG_ENABLE([parallel-IO],
-              AS_HELP_STRING([--enable-parallel-io],
+              AS_HELP_STRING([--enable-parallel-IO],
                        [enables single output file by all procs. Needs hardware support]))
 AC_MSG_CHECKING([enable parallel-IO])
 if test "x$enable_parallel_IO" = "xyes" && test "x$enable_parallel" != "xno"; then
