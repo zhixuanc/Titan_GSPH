@@ -42,15 +42,8 @@ AC_ARG_ENABLE(parallel,
 if test "x$enable_parallel" != "xno"; then
   AC_DEFINE([MULTI_PROC],[],[build parallel code])
   AC_MSG_RESULT([yes])
-  # skip the checks if using MPI compilers
-  if test "x$CXX" = "xmpic++" || test  "x$CXX" = "xmpicxx"; then
-      check_mpi='no'
-  else
-      check_mpi='yes'
-  fi
 else
   AC_MSG_RESULT([no])
-  check_mpi=""
 fi
 
 # parallel-IO
@@ -73,7 +66,7 @@ AC_ARG_WITH([mpi],
                            [mpich2 is required for parallel build]))
 
 # check for MPI installation
-if test "x$check_mpi" = "xyes"; then
+if test "x$enable_parallel" = "xyes"; then
     # check for MPICH PKG_CONFIG
     PKG_CHECK_MODULES([MPI],[mpich2-ch3],[mpich2='yes'],[mpich2='no'])
 

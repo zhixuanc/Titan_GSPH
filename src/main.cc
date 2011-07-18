@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     cerr << "ERROR: Can't read input data\n";
     exit(1); 
   }
-  
+
   //read initial particle distribution
   if (Read_Grid(&P_table, &BG_mesh, &partition_table, matprops, pileprops, fluxprops)!=0)
   {
