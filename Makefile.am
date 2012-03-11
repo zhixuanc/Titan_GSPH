@@ -6,11 +6,12 @@
 
 #EXTRA_DIST =
 
-SUBDIRS = gisapi datstr multiproc src preproc
+if PARALLEL_BUILD
+    SUBDIRS = gisapi datstr multiproc src preproc
+else
+    SUBDIRS = gisapi datstr src preproc
+endif
 
-#if PARALLEL_BUILD
-#SUBDIRS += multiproc
-#endif
-#if BUILD_DOCS
-#  OPT_DIRS = doc
-#endif
+if BUILD_DOCS
+    OPT_DIRS = doc
+endif

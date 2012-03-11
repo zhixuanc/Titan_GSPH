@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -32,39 +33,41 @@ using namespace std;
 #include "constants.h"
 #include "sph_header.h"
 
-int search_neighs (int myid, HashTable *P_table, HashTable *BG_mesh)
+int
+search_neighs(int myid, HashTable * P_table, HashTable * BG_mesh)
 {
-  int      i, j;
+  int i, j;
   unsigned tempkey[KEYLENGTH];
-  double   xi[DIMENSION];
-  double   hi;
-  vector<Key> neighs;
-  Key      *neighbors;
-  Key      ptemp;
+  double xi[DIMENSION];
+  double hi;
+
+  vector < Key > neighs;
+  Key *neighbors;
+  Key ptemp;
 
   // create a Hash Table iterators instance
   HTIterator *igrd = new HTIterator(BG_mesh);
 
   // iterate over the bucket table
   Particle *pi, *pj;
-  Bucket *curr_bucket, *neigh_bucket; 
-  while ((curr_bucket=(Bucket *) igrd->next()))
+  Bucket *curr_bucket, *neigh_bucket;
+
+  while ((curr_bucket = (Bucket *) igrd->next()))
   {
     assert(curr_bucket);
-    if ( !curr_bucket->is_guest() &&
-         (curr_bucket->get_plist().size() > 0 ) )
+    if (!curr_bucket->is_guest() && (curr_bucket->get_plist().size() > 0))
     {
-      vector<Key> plist=curr_bucket->get_plist();
-      vector<Key>::iterator itr;
-      for (itr=plist.begin(); itr != plist.end(); itr++)
+      vector < Key > plist = curr_bucket->get_plist();
+      vector < Key >::iterator itr;
+      for (itr = plist.begin(); itr != plist.end(); itr++)
       {
         pi = (Particle *) P_table->lookup(*itr);
         assert(pi);
 
         // 3*sqrt(2) < 4.25
-        hi = 4.25*pi->get_smlen();
-        for (int k=0; k<DIMENSION; k++)
-          xi[k] = *(pi->get_coords()+k);
+        hi = 4.25 * pi->get_smlen();
+        for (int k = 0; k < DIMENSION; k++)
+          xi[k] = *(pi->get_coords() + k);
 
         // all particles in current bucket are neighbors
         neighs.clear();
@@ -75,15 +78,16 @@ int search_neighs (int myid, HashTable *P_table, HashTable *BG_mesh)
         // search the neighboring buckets for neighbors
         neighbors = curr_bucket->get_neighbors();
         const int *neigh_proc = curr_bucket->get_neigh_proc();
-        for (i=0; i<NEIGH_SIZE; i++)
-          if ( *(neigh_proc+i) > -1 )
+
+        for (i = 0; i < NEIGH_SIZE; i++)
+          if (*(neigh_proc + i) > -1)
           {
             neigh_bucket = (Bucket *) BG_mesh->lookup(neighbors[i]);
-            if ( !(neigh_bucket) && (*(neigh_proc+i)!=myid) )
+            if (!(neigh_bucket) && (*(neigh_proc + i) != myid))
               continue;
             assert(neigh_bucket);
-            vector<Key> plist2 = neigh_bucket->get_plist();
-            vector<Key>::iterator it2;
+            vector < Key > plist2 = neigh_bucket->get_plist();
+            vector < Key >::iterator it2;
             for (it2 = plist2.begin(); it2 != plist2.end(); it2++)
             {
               pj = (Particle *) P_table->lookup(*it2);
@@ -91,11 +95,12 @@ int search_neighs (int myid, HashTable *P_table, HashTable *BG_mesh)
 
               // get dr to particle j
               double ds[DIMENSION];
-              for (j=0; j<DIMENSION; j++)
-                ds[j]=xi[j]- *(pj->get_coords()+j);
+
+              for (j = 0; j < DIMENSION; j++)
+                ds[j] = xi[j] - *(pj->get_coords() + j);
 
               // if within support, add to neigh list
-              if ( in_support( ds, hi) )
+              if (in_support(ds, hi))
                 neighs.push_back(*it2);
             }
           }
@@ -106,5 +111,6 @@ int search_neighs (int myid, HashTable *P_table, HashTable *BG_mesh)
 
   // delete iterator
   delete igrd;
+
   return 0;
 }

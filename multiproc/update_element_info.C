@@ -16,7 +16,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include <config.h>
+#include <config.h>
 #endif
 
 /*
@@ -41,9 +41,9 @@ void check_neighbor_info (Element * newelement, HashTable * HT_Elem_Ptr,
 
 
 
-void destroy_element (Element * r_element, HashTable * HT_Elem_Ptr, 
-                      HashTable * HT_Node_Ptr, int target_proc, 
-                      ELinkPtr * EL_head)
+void
+destroy_element (Element * r_element, HashTable * HT_Elem_Ptr,
+                 HashTable * HT_Node_Ptr, int target_proc, ELinkPtr * EL_head)
   /*1.  Update the neighbor_proc of the neighbors
      1.1 if neighbor is at the same proc---->ok
      1.2 if neighbor is at the target proc-->done when the element 
@@ -74,15 +74,13 @@ void destroy_element (Element * r_element, HashTable * HT_Elem_Ptr,
             diff_proc (r_element, HT_Elem_Ptr, target_proc, i, EL_head);
         }
     }
-
   HT_Elem_Ptr->remove (r_element->key);
-
-
 }
 
 
 //don't call if s_flag is 0 (original repartitioning scheme)
-void create_element (ElemPack * elem2, HashTable * HT_Elem_Ptr,
+void
+create_element (ElemPack * elem2, HashTable * HT_Elem_Ptr,
                 HashTable * HT_Node_Ptr, int myid, double *e_error)
 {
 
@@ -98,7 +96,8 @@ void create_element (ElemPack * elem2, HashTable * HT_Elem_Ptr,
 }
 
 // bsfc repartitioning scheme
-void create_element (ElemPack * elem2, HashTable * HT_Elem_Ptr,
+void
+create_element (ElemPack * elem2, HashTable * HT_Elem_Ptr,
                 HashTable * HT_Node_Ptr, int myid)
 {
   Element *newelement = new Element ();
@@ -130,7 +129,8 @@ void create_element (ElemPack * elem2, HashTable * HT_Elem_Ptr,
 }
 
 
-void same_proc (Element * r_element, HashTable * HT_Elem_Ptr,
+void
+same_proc (Element * r_element, HashTable * HT_Elem_Ptr,
            int target_proc, int side)
 {
   Element *Neighbor;
@@ -147,7 +147,8 @@ void same_proc (Element * r_element, HashTable * HT_Elem_Ptr,
 
 }
 
-void diff_proc (Element * r_element, HashTable * HT_Elem_Ptr,
+void
+diff_proc (Element * r_element, HashTable * HT_Elem_Ptr,
            int new_proc, int side, ELinkPtr * EL_head)
 {
 
@@ -169,7 +170,9 @@ void diff_proc (Element * r_element, HashTable * HT_Elem_Ptr,
       *EL_head = EL_new;
     }
 }
-void construct_el (Element * newelement, ElemPack * elem2,
+
+void
+construct_el (Element * newelement, ElemPack * elem2,
               HashTable * HT_Node_Ptr, int myid, double *e_error)
 {
   Node *node;
@@ -301,7 +304,8 @@ void construct_el (Element * newelement, ElemPack * elem2,
   return;
 }
 
-void check_neighbor_info (Element * newelement, HashTable * HT_Elem_Ptr, int myid)
+void
+check_neighbor_info (Element * newelement, HashTable * HT_Elem_Ptr, int myid)
 {
 
   int *neigh_proc = newelement->getassoc ();
@@ -325,7 +329,8 @@ void check_neighbor_info (Element * newelement, HashTable * HT_Elem_Ptr, int myi
 
 
 //for the 3rd party involved in updating
-void diff_proc1_2 (int counter, NeighborPack packed_neighbor_info[],
+void
+diff_proc1_2 (int counter, NeighborPack packed_neighbor_info[],
               HashTable * HT_Elem_Ptr)
 {
 

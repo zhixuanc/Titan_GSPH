@@ -32,7 +32,6 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <cstdio>
 using namespace std;
 
 #include "buckstr.h"
@@ -45,8 +44,7 @@ string create_filename (string base, string ext, const int padding, int myid)
   return ss.str();
 }
 
-void createfunky(int np, int nhtvars, double *htvars, 
-                 int nbucket, BucketStruct *bg)
+void createfunky(int myid, int nhtvars, double *htvars, vector<BucketStruct> *bg)
 {
 
   int i, j;
@@ -55,46 +53,24 @@ void createfunky(int np, int nhtvars, double *htvars,
   const int padding = 4;
 
   // create filenames
-  hid_t *fp = new hid_t [np];
-  for (i=0; i < np; i++ )
-  {
-    string fname = create_filename (basename, exten, padding, i);
-    fp[i] = GH5_fopen_serial (fname.c_str(),'w');
-  }
+  string fname = create_filename (basename, exten, padding, myid);
+  hid_t fp = GH5_fopen_serial (fname.c_str(),'w');
 
+  // write HASH TABLE constants
+  int dims1[2]={nhtvars,0};
+  GH5_WriteS (fp ,"/hashtable_constants", dims1, (void *) htvars, 0, 0, DOUBLETYPE);
 
-  for (i=0; i< np; i++)
-  {
-    // write HASH TABLE constants
-    int dims1[2]={nhtvars,0};
-    GH5_WriteS (fp[i] ,"/hashtable_constants", dims1, (void *) htvars, 0, 0, DOUBLETYPE);
-
-    // copy cells for each proc
-    int size2=0, ibuck = 0;
-    for ( j=0; j < nbucket; j++)
-      if ( bg[j].myproc == i )
-        size2++;
-
-    BucketStruct *myBucks = new BucketStruct [size2];
-    for ( j=0; j < nbucket; j++ )
-      if ( bg[j].myproc == i )
-        myBucks[ibuck++] = bg[j];
-
-    if (ibuck != size2)
-    {
-      fprintf(stderr,"CRAP!!! size = %d, count=%d\n", size2, ibuck);
-      exit(1);
-    }
+  // copy vector to an regular array
+  int nbuck = (int) bg->size();
+  BucketStruct *myBucks = new BucketStruct [nbuck];
+  copy(bg->begin(), bg->end(), myBucks);
 
     // write Background Grid data
-    printf("size2 = %d\n", size2);
-    GH5_write_grid_data(fp[i],"/Buckets", size2, myBucks);
+  GH5_write_grid_data(fp,"/Buckets", nbuck, myBucks);
 
-    delete [] myBucks;
+  delete [] myBucks;
     // close file
-    GH5_fclose(fp[i]);
-  }
+  GH5_fclose(fp);
 
-  delete []fp;
   return;
 }

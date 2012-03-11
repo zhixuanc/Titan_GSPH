@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -32,114 +33,147 @@ using namespace std;
 #include "constants.h"
 #include "sph_header.h"
 
-int calc_f_coef(int myid, HashTable *P_table, 
-                HashTable *BG_mesh, MatProps *matprops)
+int
+calc_f_coef(int myid, HashTable * P_table,
+            HashTable * BG_mesh, MatProps * matprops)
 {
   int i, j, k, l;
   int count;
   double dx[DIMENSION], sj[DIMENSION], vel[DIMENSION];
-  double coord[DIMENSION];
+  double coord[DIMENSION], norm[DIMENSION];
   double bnd_xcrd[PARTICLE_DENSITY];
   double bnd_ycrd[PARTICLE_DENSITY];
-  double f_coef[PARTICLE_DENSITY];
+  double f_coef[PARTICLE_DENSQRD * DIMENSION];
+  double fcoef1[DIMENSION];
   double hj, mj, rhoj;
-  vector<Key> plist;
-  vector<Key>::iterator p_itr;
+
+  vector < Key > plist;
+  vector < Key >::iterator p_itr;
 
   double beta = matprops->bedfrict;
   HTIterator *itr = new HTIterator(BG_mesh);
   Bucket *curr_bucket;
-  while ( curr_bucket = (Bucket *) itr->next() )
-    if ( curr_bucket->is_active() && !(curr_bucket->is_guest()) &&
-         (curr_bucket->get_bucket_type() == MIXED) )
+
+  while ((curr_bucket = (Bucket *) itr->next()))
+    if (curr_bucket->is_active() && !(curr_bucket->is_guest()) &&
+        (curr_bucket->get_bucket_type() == MIXED))
     {
       // initalize 
-      for (i=0; i<PARTICLE_DENSITY; i++)
+      for (i = 0; i < PARTICLE_DENSITY; i++)
       {
-        bnd_xcrd[i] = *(curr_bucket->get_bnd_xcrd()+i);
-        f_coef[i] = 0;
+        bnd_xcrd[i] = *(curr_bucket->get_bnd_xcrd() + i);
+        bnd_ycrd[i] = *(curr_bucket->get_bnd_ycrd() + i);
+        for (j = 0; j < PARTICLE_DENSITY; j++)
+          f_coef[i * PARTICLE_DENSITY + j] = 0.;
       }
 
-      count=0;
-      for (i=0; i<PARTICLE_DENSITY; i++)
-      {
-        double wnorm  = 0.;
-        // coords of bnd_pnt
-        coord[0] = bnd_xcrd[0];
-        coord[1] = curr_bucket->get_bndZ(coord);
+      count = 0;
+      double wnorm = 0.;
 
-        double slope = -1./curr_bucket->get_bndnorm(coord);
-        double cost = 1.0/sqrt(1 + pow(slope,2.));
-        double sint = slope*cost;
-
-        // look into thyself
-        plist = curr_bucket->get_plist();
-        for (p_itr=plist.begin(); p_itr!=plist.end(); p_itr++)
+      for (i = 0; i < PARTICLE_DENSITY; i++)
+        for (j = 0; j < PARTICLE_DENSITY; j++)
         {
-          Particle *pj = (Particle *) P_table->lookup(*p_itr);
-          if (!pj->is_ghost())
-          {
-            hj = pj->get_smlen();
-            mj = pj->get_mass();
-            rhoj = pj->get_density();
-            for (l=0; l<DIMENSION; l++)
-            {
-              dx[l] = coord[l] - *(pj->get_coords()+l);
-              sj[l] = dx[l]/hj;
-              vel[l] = *(pj->get_vel()+l);
-            }
-            double w=weight(sj,hj);
-            // velocity parallel to the boundary
-            double vel_dot_n = vel[0]*cost + vel[1]*sint;
-            f_coef[count] -= mj*beta*vel_dot_n*w/rhoj;
-            wnorm  += mj*w/rhoj;
-          }
-        }
-        // look into neighbors
-        Key *neighbors = curr_bucket->get_neighbors();
-        for ( j=0; j<NEIGH_SIZE; j++ )
-          if ( *(curr_bucket->get_neigh_proc()+j) > -1 )
-          {
-            Bucket *neigh = (Bucket *) BG_mesh->lookup(neighbors[j]);
-            if ( !(neigh) && 
-                 (*(curr_bucket->get_neigh_proc()+j) != myid) )
-              continue;
+          // coords of bnd_pnt
+          coord[0] = bnd_xcrd[0];
+          coord[1] = bnd_ycrd[0];
+          coord[2] = curr_bucket->get_bndZ(coord);
 
-            // skip bucket totally below the boundary
-            if ( neigh->get_bucket_type() == UNDERGROUND )
-              continue;
+          if (curr_bucket->contains(coord))
+          {
+            curr_bucket->get_bnd_normal(coord, norm);
 
-            plist = neigh->get_plist();
-            // get contribution of each particle in the support
-            for ( k=0; k < plist.size(); k++)
+            // look into thyself
+            plist = curr_bucket->get_plist();
+            for (p_itr = plist.begin(); p_itr != plist.end(); p_itr++)
             {
-              Particle *pj = (Particle *) P_table->lookup(plist[k]);
-              if ( !pj->is_ghost() )
+              Particle *pj = (Particle *) P_table->lookup(*p_itr);
+
+              if (!pj->is_ghost())
               {
                 hj = pj->get_smlen();
                 mj = pj->get_mass();
                 rhoj = pj->get_density();
-                for (l=0; l<DIMENSION; l++)
-                { 
-                  dx[l] = coord[l] - *(pj->get_coords()+l);
-                  vel[l] = *(pj->get_vel()+l);
-                  sj[l] = dx[l]/hj;
+                for (k = 0; k < DIMENSION; k++)
+                {
+                  dx[k] = coord[k] - *(pj->get_coords() + k);
+                  sj[k] = dx[k] / hj;
+                  vel[k] = *(pj->get_vel() + k);
                 }
-                double w=weight(sj,hj);
-                // velocity parallel to the boundary
-                double vel_dot_n = vel[0]*cost + vel[1]*sint;
-                f_coef[count] -= mj*beta*vel_dot_n*w/rhoj;
-                wnorm  += mj*w/rhoj;
+                double w = weight(sj, hj);
+
+                // remove the component normal to velocity
+                // V_p = V  - (V.n)n
+                double vnorm = dot(vel, norm);
+
+                // velocity in boudary plane
+                for (k = 0; k < DIMENSION; k++)
+                {
+                  vel[k] -= vnorm * norm[k];
+                  fcoef1[k] -= mj * beta * vel[k] * w / rhoj;
+                  wnorm += mj * w / rhoj;
+                }
               }
             }
+            // look into neighbors
+            Key *neighbors = curr_bucket->get_neighbors();
+
+            for (j = 0; j < NEIGH_SIZE; j++)
+              if (*(curr_bucket->get_neigh_proc() + j) > -1)
+              {
+                Bucket *neigh = (Bucket *) BG_mesh->lookup(neighbors[j]);
+
+                if ((!neigh) && (*(curr_bucket->get_neigh_proc() + j) != myid))
+                  continue;
+
+                // skip bucket totally below the boundary
+                if (neigh->get_bucket_type() == UNDERGROUND)
+                  continue;
+
+                plist = neigh->get_plist();
+                // get contribution of each particle in the support
+                for (p_itr = plist.begin(); p_itr != plist.end(); p_itr++)
+                {
+                  Particle *pj = (Particle *) P_table->lookup(*p_itr);
+
+                  if (!pj->is_ghost())
+                  {
+                    hj = pj->get_smlen();
+                    mj = pj->get_mass();
+                    rhoj = pj->get_density();
+                    for (k = 0; k < DIMENSION; k++)
+                    {
+                      dx[k] = coord[k] - *(pj->get_coords() + k);
+                      vel[k] = *(pj->get_vel() + k);
+                      sj[k] = dx[k] / hj;
+                    }
+                    double w = weight(sj, hj);
+
+                    // remove the component normal to velocity
+                    // V_p = V  - (V.n)n
+                    double vnorm = dot(vel, norm);
+
+                    // velocity in boudary plane
+                    for (k = 0; k < DIMENSION; k++)
+                    {
+                      vel[k] -= vnorm * norm[k];
+                      fcoef1[k] -= mj * beta * vel[k] * w / rhoj;
+                      wnorm += mj * w / rhoj;
+                    }
+                  }
+                }
+              }
+            if (wnorm > TINY)
+              for (k = 0; k < DIMENSION; k++)
+                f_coef[count + k] = fcoef1[k] / wnorm;
+            else
+              for (k = 0; k < DIMENSION; k++)
+                f_coef[count + k] = 0.;
           }
-        if ( wnorm > TINY )
-          f_coef[count] /= wnorm;
-        else
-          f_coef[count] = 0.;
-        count++;
-      }
+          count++;
+        }
       curr_bucket->put_f_coef(f_coef);
     }
+  delete itr;
+
   return 0;
 }

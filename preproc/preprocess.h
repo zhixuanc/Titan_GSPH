@@ -28,22 +28,21 @@ using namespace std;
 
 #include <buckstr.h>
 
-struct buckhead {
-  int index;
+struct column_head {
+  int xind, yind;
   int proc;
-  double xcrd;
-  unsigned segment[KEYLENGTH];
+  unsigned key[KEYLENGTH];
 
   // constructor
-  buckhead (int i, unsigned key[], double crd)
+  column_head (int i, int j, unsigned keyi[])
   {
-    index = i;
-    xcrd = crd;
+    xind = i;
+    yind = j;
     for (i=0; i < KEYLENGTH; i++ )
-      segment[i] = key[i];
+      key[i] = keyi[i];
   }
 };
-typedef struct buckhead BuckHead;
+typedef struct column_head ColumnHead;
 
 // 2-D inclined plane
 void GIS_get_elevation ( int, double , double *);
@@ -56,10 +55,8 @@ void createfunky(
                  int,
                  //! Hash Table Constants
                  double *,
-                 //! Size of array containing Background grid data
-                 int ,
                  //! Background grid data
-                 BucketStruct *
+                 vector<BucketStruct> *
                 );
 
 //! Generate key based on location

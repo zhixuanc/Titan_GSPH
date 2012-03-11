@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -21,40 +22,37 @@
  */
 
 #ifndef BGMESH__H
-#define BGMESH__H
+#  define BGMESH__H
 
-#include <vector>
+#  include <vector>
 using namespace std;
 
-#include <hashtab.h>
-#include <bnd_image.h>
-#include <properties.h>
+#  include <hashtab.h>
+#  include <bnd_image.h>
+#  include <properties.h>
 
+void update_bgmesh (
+                     //! Particle Hash-table
+                     HashTable *,
+                     //! Bucket Hash-table
+                     HashTable *,
+                     //! Material properties
+                     MatProps *,
+                     //! Process ID
+                     int,
+                     //! check if Background Mesh was changed
+                     int *);
 
-void update_bgmesh(
-    //! Particle Hash-table
-    HashTable *, 
-    //! Bucket Hash-table
-    HashTable *,
-    //! Material properties
-    MatProps *,
-    //! Process ID
-    int ,
-    //! check if Background Mesh was changed
-    int *
-   );
-
-void search_bnd_images(
-    //! ProcessID
-    int ,
-    //! Hash-table of particles
-    HashTable *,
-    //! Hash-table of buckets
-    HashTable *,
-    //! Vector of Boundary reflections
-    vector<BndImage> *,
-    //! flag to reset image-table
-    int
-   );
+void search_bnd_images (
+                         //! ProcessID
+                         int,
+                         //! Hash-table of particles
+                         HashTable *,
+                         //! Hash-table of buckets
+                         HashTable *,
+                         //! Vector of Boundary reflections
+                         vector < BndImage > *,
+                         //! flag to reset image-table
+                         int);
 
 #endif

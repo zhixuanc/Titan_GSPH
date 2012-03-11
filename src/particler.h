@@ -70,7 +70,7 @@ int mom_update(
                double          //! time increment for current step
               );
 
-//! Read simulation data {\it i.e.} simulation time, output format, pile pros etc
+//! Read simulation data \f${\it i.e.}\f$ simulation time, output format, pile pros etc
 int Read_Data (
                MatProps *,     //! Structure containg material mroperties
                TimeProps *,    //! Structure containg time mroperties

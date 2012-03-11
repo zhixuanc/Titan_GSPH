@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -21,12 +22,12 @@
  */
 
 #ifndef PRPERTIES__H
-#define PRPERTIES__H
+#  define PRPERTIES__H
 
-#include <cmath>
+#  include <cmath>
 using namespace std;
 
-#include <hashtab.h>
+#  include <hashtab.h>
 
 struct TimeProps
 {
@@ -55,22 +56,22 @@ struct TimeProps
   bool mat_add_time;
 
   //! material add counter
-  int    imatin;
+  int imatin;
 
   //! current time-step
-  int    step;
+  int step;
 
   //! count of previous outputs
-  int    ioutput;
+  int ioutput;
 
   //! maximum time-steps allowed
-  int    max_steps;
+  int max_steps;
 
   //! Scale to Normalize the time
   double TIME_SCALE;
 
   //! constructor to allocate default values
-  TimeProps()
+    TimeProps ()
   {
     max_time = 1.0;
     timeoutput = 0.02;
@@ -80,72 +81,86 @@ struct TimeProps
     ioutput = 0;
     imatin = 0;
     step = 0;
-    max_steps  = 10;
+    max_steps = 10;
   }
 
-  void incrtime(double *dt)
+  void incrtime (double *dt)
   {
     // first reduce dt to hit output or end time "exactly"
-    if( (time + (*dt)) > ndtimeoutput) (*dt)=ndtimeoutput-time;
-    if( (time + (*dt)) > ndmax_time)   (*dt)=ndmax_time  -time;
+    if ((time + (*dt)) > ndtimeoutput)
+      (*dt) = ndtimeoutput - time;
+    if ((time + (*dt)) > ndmax_time)
+      (*dt) = ndmax_time - time;
     // then increment time
-    time += (*dt); 
+    time += (*dt);
     dtime = (*dt);
     step++;
   }
 
-  bool  ifstart(){return(step==0);} //before first time step
-  bool  iffirst(){return(step==1);} //at first time step
-  bool  ifend()  {return((time >= ndmax_time)||(step > max_steps));}
-
-  bool  ifoutput()
+  bool ifstart ()
   {
-    if( time >= ndtimeoutput)
+    return (step == 0);
+  }                             //before first time step
+  bool iffirst ()
+  {
+    return (step == 1);
+  }                             //at first time step
+  bool ifend ()
+  {
+    return ((time >= ndmax_time) || (step > max_steps));
+  }
+
+  bool ifoutput ()
+  {
+    if (time >= ndtimeoutput)
     {
-      ioutput++;  //using ioutput eliminates roundoff
-      ndtimeoutput=((ioutput+1)*timeoutput)/TIME_SCALE;
+      ioutput++;                //using ioutput eliminates roundoff
+      ndtimeoutput = ((ioutput + 1) * timeoutput) / TIME_SCALE;
       return true;
     }
-    else 
+    else
       return false;
   }
 
-  bool addmaterial()
+  bool addmaterial ()
   {
-    if ( mat_add_time )
+    if (mat_add_time)
     {
       mat_add_time = false;
       return true;
     }
-    return false; 
+    return false;
   }
 
-  void chunktime(int *hours, int *minutes, double *seconds)
+  void chunktime (int *hours, int *minutes, double *seconds)
   {
-    double dimtime=time*TIME_SCALE;
-    *hours   = ((int) dimtime)/3600;
-    *minutes = (((int) dimtime)%3600)/60;
-    *seconds = dimtime -(double)(*hours*3600+*minutes*60);
+    double dimtime = time * TIME_SCALE;
+
+    *hours = ((int) dimtime) / 3600;
+    *minutes = (((int) dimtime) % 3600) / 60;
+    *seconds = dimtime - (double) (*hours * 3600 + *minutes * 60);
   }
 
-  double timesec(){return(time*TIME_SCALE);}
+  double timesec ()
+  {
+    return (time * TIME_SCALE);
+  }
 
 };
-
-
 
 struct MatProps
 {
   //! phi_{int}, the internal friction angle (must be GREATER than the bedfriction angle)
-  double  intfrict;
+  double intfrict;
 
   //! tan(phi_{int}), tangent of the internal friction angle
-  double  tanintfrict;
+  double tanintfrict;
 
   //! sin(phi_{int}), sine of the internal friction angle
-  double  sinintfrict;
+  double sinintfrict;
 
-  //! phi_{bed}, the bed friction angle, must be LESS than the internal friction angle and should be greater than about 8 degrees 
+  //! phi_{bed}, the bed friction angle, must be LESS than the internal friction
+  //! angle and should be greater than about 8 degrees 
   double bedfrict;
 
   //! tan(phi_{bed}), tangent of the bed friction angle
@@ -155,7 +170,7 @@ struct MatProps
   double P_CONSTANT;
 
   //! slope limiting stuff
-  double  GAMMA;
+  double GAMMA;
 
   //! SPH smoothing length
   double smoothing_length;
@@ -164,10 +179,10 @@ struct MatProps
   double particle_mass;
 
   //! length scaling factor
-  double  LENGTH_SCALE;
+  double LENGTH_SCALE;
 
   //! gravity scaling factor
-  double  GRAVITY_SCALE;
+  double GRAVITY_SCALE;
 
   //! normaliszed initial density
   double Rho0;
@@ -176,12 +191,12 @@ struct MatProps
   double TINY;
 
   //! constructor allocates default properties 
-  MatProps()
+    MatProps ()
   {
-    intfrict=0.3491;  // 20 deg
-    tanintfrict=tan(intfrict);
-    bedfrict=0.1745;  // 10 deg
-    tanbedfrict=tan(bedfrict);
+    intfrict = 0.3491;          // 20 deg
+    tanintfrict = tan (intfrict);
+    bedfrict = 0.1745;          // 10 deg
+    tanbedfrict = tan (bedfrict);
     Rho0 = 1;
     P_CONSTANT = 1.;
     GAMMA = 7.;
@@ -192,17 +207,19 @@ struct MatProps
 
   double pressure (double rho)
   {
-    double n=GAMMA;
-    double k=P_CONSTANT;
-    double tmp = rho/Rho0;
-    return k*(pow(tmp,n)-1);
+    double n = GAMMA;
+    double k = P_CONSTANT;
+    double tmp = rho / Rho0;
+
+    return k * (pow (tmp, n) - 1);
   }
-  double sound_speed( double rho )
+  double sound_speed (double rho)
   {
-    double n=GAMMA;
-    double p=pressure(rho);
-    double k=P_CONSTANT;
-    double c = rho <= TINY? 0. : sqrt(n*(p+k)/rho);
+    double n = GAMMA;
+    double p = pressure (rho);
+    double k = P_CONSTANT;
+    double c = rho <= TINY ? 0. : sqrt (n * (p + k) / rho);
+
     return c;
   }
 };
@@ -240,45 +257,48 @@ struct PileProps
   double *sinrot;
 
   //! this constuctor initializes the number of piles to zero.
-  PileProps() {
+    PileProps ()
+  {
     NumPiles = 0;
   }
 
   //! function allocates space for the pile data
-  void allocpiles(int nump) 
+  void allocpiles (int nump)
   {
-    NumPiles=nump;
-    pileheight=new double[nump];
-    xCen      =new double[nump];
-    yCen      =new double[nump];
-    zCen      =new double[nump];
-    CenBucket =new    Key[nump];
-    majorrad  =new double[nump];
-    minorrad  =new double[nump];
-    cosrot    =new double[nump];
-    sinrot    =new double[nump];
+    NumPiles = nump;
+    pileheight = new double[nump];
+    xCen = new double[nump];
+    yCen = new double[nump];
+    zCen = new double[nump];
+
+    CenBucket = new Key[nump];
+    majorrad = new double[nump];
+    minorrad = new double[nump];
+    cosrot = new double[nump];
+    sinrot = new double[nump];
   }
 
   //! this function deallocates the dynamically out array members of the PileProps structure
-  ~PileProps() 
+  ~PileProps ()
   {
-    if(NumPiles>0) 
+    if (NumPiles > 0)
     {
-      delete [] pileheight;
-      delete [] xCen;
-      delete [] yCen;
-      delete [] zCen;
-      delete [] majorrad;
-      delete [] minorrad;
-      delete [] cosrot;
-      delete [] sinrot;
-    }     
+      delete[]pileheight;
+      delete[]xCen;
+      delete[]yCen;
+      delete[]zCen;
+      delete[]majorrad;
+      delete[]minorrad;
+      delete[]cosrot;
+      delete[]sinrot;
+    }
   }
 };
 
-struct FluxProps {
+struct FluxProps
+{
 
-  bool  have_src;
+  bool have_src;
 
   //! X coord of flux source
   double xSrc;
@@ -295,8 +315,8 @@ struct FluxProps {
   //! tangenital velocity function
   double tangvel;
 
-  FluxProps()
-  {  
+    FluxProps ()
+  {
     have_src = false;
   }
 };

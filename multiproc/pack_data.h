@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -21,9 +22,9 @@
  */
 
 #ifndef PACK_DATA__H
-#define PACK_DATA__H
+#  define PACK_DATA__H
 
-#include <constants.h>
+#  include <constants.h>
 
 struct PARTICLE_PACK
 {
@@ -43,32 +44,25 @@ struct BUCKET_PACK
 {
   // Integers
   int myprocess;
-  int bucket_type;
-  int boundary_type;
-  int real_particles;
-  int ghost_particles;
-  int NumParticles;
   int activeflag;
+  int bucket_type;
+  int particles_type;
+  int NumParticles;
   int neigh_proc[NEIGH_SIZE];
 
   // Unsigned integers
   unsigned key[KEYLENGTH];
-  unsigned neighs[NEIGH_SIZE*KEYLENGTH];
-  unsigned particles[MAX_PARTICLES_PER_BUCKET*KEYLENGTH];
+  unsigned neighs[NEIGH_SIZE * KEYLENGTH];
+  unsigned particles[MAX_PARTICLES_PER_BUCKET * KEYLENGTH];
 
   // Doubles
   double mincrd[DIMENSION];
   double maxcrd[DIMENSION];
-#ifdef THREE_D
-  double poly[4];
+  double poly1[4];
+  double poly2[4];
   double bndx[PARTICLE_DENSITY];
   double bndy[PARTICLE_DENSITY];
-  double fric[PARTICLE_DENSQRD];
-#else
-  double poly[3];
-  double bndx[PARTICLE_DENSITY];
-  double fric[PARTICLE_DENSITY];
-#endif
+  double fric[PARTICLE_DENSQRD * DIMENSION];
 };
 typedef struct BUCKET_PACK BucketPack;
 

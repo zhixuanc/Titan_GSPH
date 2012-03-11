@@ -34,24 +34,21 @@ void pack_bucket (BucketPack *buckpack, Bucket *sendbuck, int process)
 {
   int j, i;
   buckpack->myprocess = process;
-  buckpack->bucket_type = sendbuck->get_bucket_type();
-  buckpack->boundary_type = sendbuck->get_bndtype();
-  buckpack->real_particles = (int) sendbuck->have_real_particles();
-  buckpack->ghost_particles = (int) sendbuck->have_ghost_particles();
-  buckpack->activeflag = (int) sendbuck->is_active();
+  buckpack->bucket_type = sendbuck->bucket_type;
+  buckpack->particles_type = sendbuck->particles_type;
+  buckpack->activeflag = (int) sendbuck->active;
   for (j=0; j<KEYLENGTH; j++)
-    buckpack->key[j] = (sendbuck->getKey()).key[j];
+    buckpack->key[j] = sendbuck->key.key[j];
 
   for (i = 0; i < NEIGH_SIZE; i++)
   {
-    buckpack->neigh_proc[i] = *(sendbuck->get_neigh_proc()+i);
-    Key *kptr = sendbuck->get_neighbors();
+    buckpack->neigh_proc[i] = sendbuck->neigh_proc[i];
     for ( j=0; j<KEYLENGTH; j++)
-      buckpack->neighs[i*KEYLENGTH+j] = (kptr+i)->key[j];
+      buckpack->neighs[i*KEYLENGTH+j] = sendbuck->neighbors[i].key[j];
   }
 
-  vector<Key> my_prtcls = sendbuck->get_plist();
-  int psize = (int) my_prtcls.size();
+  vector<Key> particles = sendbuck->particles;
+  int psize = (int) particles.size();
   if ( psize > MAX_PARTICLES_PER_BUCKET)
   {
     cerr << "Number of particles exceed Maximum allowable limit." << endl;
@@ -63,58 +60,44 @@ void pack_bucket (BucketPack *buckpack, Bucket *sendbuck, int process)
   buckpack->NumParticles = psize;
   for ( i=0; i < psize; i++ )
     for ( j=0; j < KEYLENGTH; j++ )
-      buckpack->particles[i*KEYLENGTH+j] = my_prtcls[i].key[j];
+      buckpack->particles[i*KEYLENGTH+j] = particles[i].key[j];
 
   // bucket upper and lower limits
   for (i=0; i < DIMENSION; i++)
   {
-    buckpack->mincrd[i] = *(sendbuck->get_mincrd()+i);
-    buckpack->maxcrd[i] = *(sendbuck->get_maxcrd()+i);
+    buckpack->mincrd[i] = sendbuck->mincrd[i];
+    buckpack->maxcrd[i] = sendbuck->maxcrd[i];
   }
 
   // boundary fucntion
-#ifdef THREE_D
   for (i=0; i<4; i++)
-#else
-  for (i=0; i<3; i++)
-#endif
-    buckpack->poly[i] = *(sendbuck->get_bndcoeff()+i);   
+  {
+    buckpack->poly1[i] = sendbuck->lower_tri[i];
+    buckpack->poly2[i] = sendbuck->upper_tri[i];
+  }
 
   // boundary points and value of friction coeficents
   if ( sendbuck->get_bucket_type() == MIXED )
   {
     for (i=0; i < PARTICLE_DENSITY; i++)
     {
-      buckpack->bndx[i] = *(sendbuck->get_bnd_xcrd()+i);
-#ifdef THREE_D
-      buckpack->bndy[i] = *(sendbuck->get_bnd_ycrd()+i);
-#endif
+      buckpack->bndx[i] = sendbuck->bnd_xcrd[i];
+      buckpack->bndy[i] = sendbuck->bnd_ycrd[i];
     }
-
-#ifdef THREE_D
-    for (i=0; i < PARTICLE_DENSQRD; i++)
-#else
-    for (i=0; i < PARTICLE_DENSITY; i++)
-#endif 
-      buckpack->fric[i] = *(sendbuck->get_f_coef()+i);
+    for (i = 0;  i < PARTICLE_DENSQRD*DIMENSION; i++)
+      buckpack->fric[i] = sendbuck->f_coef[i];
   }
   else
   {
     for (i=0; i < PARTICLE_DENSITY; i++)
     {
       buckpack->bndx[i] = 0.;
-#ifdef THREE_D
       buckpack->bndy[i] = 0.;
-#endif
     }
 
-#ifdef THREE_D
-    for (i=0; i < PARTICLE_DENSQRD; i++)
-#else
-    for (i=0; i < PARTICLE_DENSITY; i++)
-#endif 
+    for (i=0; i < PARTICLE_DENSQRD*DIMENSION; i++)
       buckpack->fric[i] = 0.;
-  } 
+  }
   return;
 }
 
@@ -122,18 +105,18 @@ void pack_bucket (BucketPack *buckpack, Bucket *sendbuck, int process)
 void pack_particles (Particle *psend, ParticlePack *pack_array)
 {
   int j;
-  pack_array->ghost = (int) psend->is_ghost();
-  pack_array->mass  = psend->get_mass();
-  pack_array->smlen = psend->get_smlen();
+  pack_array->ghost = (int) psend->ghost;
+  pack_array->mass  = psend->mass;
+  pack_array->smlen = psend->smlen;
    
   for (j=0; j < KEYLENGTH; j++)
-    pack_array->key[j] = (psend->getKey()).key[j];
+    pack_array->key[j] = psend->key.key[j];
 
   for (j=0; j < DIMENSION; j++)
-    pack_array->coords[j] = *(psend->get_coords()+j);
+    pack_array->coords[j] = psend->coord[j];
 
   for (j=0; j < NO_OF_EQNS; j++)
-    pack_array->state_vars[j] = *(psend->get_state_vars()+j);
+    pack_array->state_vars[j] = psend->state_vars[j];
 
   return;
 }
@@ -147,9 +130,7 @@ void unpack_bucket (BucketPack *recvdBuck, Bucket *buck, int myid)
 
   buck->myprocess = myid;
   buck->bucket_type = recvdBuck->bucket_type;
-  buck->boundary_type  = recvdBuck->boundary_type;
-  buck->real_part_flag = (bool) recvdBuck->real_particles;
-  buck->ghost_part_flag = (bool) recvdBuck->ghost_particles;
+  buck->particles_type = recvdBuck->particles_type;
   buck->active = (bool) recvdBuck->activeflag;
 
   for ( i=0; i < KEYLENGTH; i++ )
@@ -168,12 +149,11 @@ void unpack_bucket (BucketPack *recvdBuck, Bucket *buck, int myid)
     buck->maxcrd[i] = recvdBuck->maxcrd[i];
   }
 
-#ifdef THREE_D
   for ( i=0; i < 4; i++ )
-#else
-  for (i=0; i < 3; i++ )
-#endif
-    buck->poly[i] = recvdBuck->poly[i];
+  {
+    buck->lower_tri[i] = recvdBuck->poly1[i];
+    buck->upper_tri[i] = recvdBuck->poly2[i];
+  }
 
   // if the bucket is a boundary bucket, get unpack boundary points
   // and friction coeficients
@@ -182,15 +162,9 @@ void unpack_bucket (BucketPack *recvdBuck, Bucket *buck, int myid)
     for (i=0; i<PARTICLE_DENSITY; i++)
     {
       buck->bnd_xcrd[i] = recvdBuck->bndx[i];
-#ifdef THREE_D
       buck->bnd_ycrd[i] = recvdBuck->bndy[i];
-#endif
     }
-#ifdef THREE_D
-    for (i=0; i<PARTICLE_DENSQRD; i++)
-#else
-    for (i=0; i<PARTICLE_DENSITY; i++)
-#endif
+    for (i=0; i<PARTICLE_DENSQRD*DIMENSION; i++)
       buck->f_coef[i]=recvdBuck->fric[i];
   }
   else
@@ -198,15 +172,9 @@ void unpack_bucket (BucketPack *recvdBuck, Bucket *buck, int myid)
     for (i=0; i<PARTICLE_DENSITY; i++)
     {
       buck->bnd_xcrd[i] = 0.;
-#ifdef THREE_D
       buck->bnd_ycrd[i] = 0.;
-#endif
     }
-#ifdef THREE_D
-    for (i=0; i<PARTICLE_DENSQRD; i++)
-#else
-    for (i=0; i<PARTICLE_DENSITY; i++)
-#endif
+    for (i=0; i<PARTICLE_DENSQRD*DIMENSION; i++)
       buck->f_coef[i] = 0.;
   }
 

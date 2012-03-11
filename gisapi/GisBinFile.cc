@@ -18,13 +18,16 @@
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
- #ifdef WIN32
-#pragma warning ( disable: 4786 )
+
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
 #endif
+
 #include "GisBinFile.h"
 #include "zlib.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // -- Constructor
 

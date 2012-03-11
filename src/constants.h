@@ -23,30 +23,19 @@
 #ifndef CONSTANT__H
 #define CONSTANT__H
 
-#ifdef THREE_D
+const int NUM_NODES=4;
 const int DIMENSION=3;
-const int KEYLENGTH=3;
+const int KEYLENGTH=2;
 const int NO_OF_EQNS=4;
 const int DIMSQRD=9;
 const int NOEQxDIM=12;
-const int NEIGH_SIZE=125;
+const int NEIGH_SIZE=27;
 const int MAX_PARTICLES_PER_BUCKET=1000;
-#else
-const int DIMENSION=2;
-const int KEYLENGTH=2;
-const int NO_OF_EQNS=3;
-const int DIMSQRD=4;
-const int NOEQxDIM=6;
-const int NEIGH_SIZE=9;
-const int MAX_PARTICLES_PER_BUCKET=100;
-#endif
 
 // Directions
 const int XDIR=0;
 const int YDIR=1;
-#ifdef THREE_D
 const int ZDIR=2;
-#endif
 
 // Boundary Conditions
 const int NONE    =0;
@@ -67,9 +56,5 @@ const int OVERGROUND  = 0xC;
 const float  LOAD_BALANCE_TOLERANCE = 1.001;
 const double PI = 3.14159265358979;
 const double TINY = 1.0E-08;
-
-// Barriers
-const int LINE = 1;
-const int CIRCLE = 2;
 
 #endif // CONSTANT__H

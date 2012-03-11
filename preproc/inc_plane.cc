@@ -35,7 +35,6 @@ double GIS_get_elevation (double x, int *polytype, double smlen)
   double x1 = 1.0;
   double z1 = x1*Slope + Intcpt;
   double z = Slope * x + Intcpt;
-  *polytype = LINE;
 
   if ( x >= x1 )
     return z;

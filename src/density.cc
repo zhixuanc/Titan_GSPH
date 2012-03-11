@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -20,7 +21,6 @@
  * $Id:$
  */
 
-
 #include <vector>
 #include <cassert>
 #include <iostream>
@@ -32,52 +32,57 @@ using namespace std;
 #include "constants.h"
 #include "sph_header.h"
 
-void smooth_density (HashTable *P_table)
+void
+smooth_density(HashTable * P_table)
 {
-  int i,j,k,no_of_neighs;
+  int i, j, k, no_of_neighs;
   unsigned jkey[KEYLENGTH];
-  double xi[DIMENSION],ds[DIMENSION],s[DIMENSION];
+  double xi[DIMENSION], ds[DIMENSION], s[DIMENSION];
   double tmprho, wnorm, wght, density;
   Key tmpkey;
-  vector<Key> neighs;
+
+  vector < Key > neighs;
 
   // create a Hash Table iterator instance
   HTIterator *itr = new HTIterator(P_table);
   Particle *pi;
+
   // iterate over the table
-  while ( pi = (Particle *) itr->next() )
+  while (pi = (Particle *) itr->next())
   {
-    if ( pi->is_real() )
+    if (pi->is_real())
     {
-      for (i=0; i<DIMENSION; i++)
-        xi[i]=*(pi->get_coords()+i);
-      double hi= pi->get_smlen();
-      double supp = 3.0*hi;
+      for (i = 0; i < DIMENSION; i++)
+        xi[i] = (*(pi->get_coords() + i));
+      double hi = pi->get_smlen();
+      double supp = 3.0 * hi;
+
       tmprho = 0;
       wnorm = 0;
       neighs = pi->get_neighs();
       no_of_neighs = neighs.size();
-      for ( j=0; j<no_of_neighs; j++  )
+      for (j = 0; j < no_of_neighs; j++)
       {
         // get the neighbors
-	Particle *pj= (Particle *) P_table->lookup(neighs[j]);
+        Particle *pj = (Particle *) P_table->lookup(neighs[j]);
+
         assert(pj);
         // guests are included ghosts are not
         if (!pj->is_ghost())
         {
-          for (i=0; i<DIMENSION; i++)
-            ds[i]=xi[i] - *(pj->get_coords()+i);
-          if ( in_support(ds, supp) )
+          for (i = 0; i < DIMENSION; i++)
+            ds[i] = xi[i] - *(pj->get_coords() + i);
+          if (in_support(ds, supp))
           {
-            for (k=0; k<DIMENSION; k++) 
-              s[k]=ds[k]/hi;
-            wght = weight (s,hi);
-	    tmprho  += wght*(pj->get_mass());
-            wnorm   += wght*(pj->get_mass())/(pj->get_density());
+            for (k = 0; k < DIMENSION; k++)
+              s[k] = ds[k] / hi;
+            wght = weight(s, hi);
+            tmprho += wght * (pj->get_mass());
+            wnorm += wght * (pj->get_mass()) / (pj->get_density());
           }
         }
       }
-      density = tmprho/wnorm;
+      density = tmprho / wnorm;
       assert(density > 0);
       pi->put_density(density);
     }
@@ -85,5 +90,6 @@ void smooth_density (HashTable *P_table)
 
   // clean up stuff
   delete itr;
+
   return;
 }

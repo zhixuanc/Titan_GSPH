@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -21,373 +22,371 @@
  */
 
 #ifndef BUCKET__H
-#define BUCKET__H
+#  define BUCKET__H
 
-#include <vector>
+#  include <vector>
 using namespace std;
 
-#include <hashtab.h>
-#include <constants.h>
-#include <properties.h>
-#include <pack_data.h>
+#  include <hashtab.h>
+#  include <constants.h>
+#  include <properties.h>
+#  include <pack_data.h>
+
+const int FIRST_BIT_UP = 0x1;
+const int SECND_BIT_UP = 0x2;
 
 // Bucket is a unit of background mesh
 class Bucket
 {
   // friends in repartition
+  friend void pack_bucket (BucketPack *, Bucket *, int);
   friend void unpack_bucket (BucketPack *, Bucket *, int);
 
-  private:
-    Key         key;
-    double      mincrd[DIMENSION];
-    double      maxcrd[DIMENSION];
-    double      bnd_xcrd[PARTICLE_DENSITY];
-#ifdef THREE_D
-    double      poly[4];
-    double      bnd_ycrd[PARTICLE_DENSITY];
-    double      f_coef[PARTICLE_DENSQRD];
-#else
-    double      poly[3];
-    double      f_coef[PARTICLE_DENSITY];
-#endif
-    double      lb_weight;
-    bool        real_part_flag;
-    bool        ghost_part_flag;
-    bool        active;
-    bool        guest_flag;
-    int         boundary_type;
-    int         bucket_type;
-    int         neigh_proc[NEIGH_SIZE];
-    int         myprocess;
-    Key         neighbors[NEIGH_SIZE];
-    vector<Key> particles;
-    vector<Key> new_plist;
+private:
+    Key key;
+  double lb_weight;
+  double mincrd[DIMENSION];
+  double maxcrd[DIMENSION];
+  double bnd_xcrd[PARTICLE_DENSITY];
+  double bnd_ycrd[PARTICLE_DENSITY];
+  double f_coef[PARTICLE_DENSQRD * DIMENSION];
+  double lower_tri[4];
+  double upper_tri[4];
+  bool active;
+  bool guest_flag;
+  int particles_type;
+  int myprocess;
+  int bucket_type;
+  int neigh_proc[NEIGH_SIZE];
+  Key neighbors[NEIGH_SIZE];
+    vector < Key > particles;
+    vector < Key > new_plist;
 
-  public:
-    //! Contructors
-    //! base constructor
+  // private function calles
+  //! distance of point from lower triangle
+  double get_lower_tri_dist (double *pnt) const
+  {
+    double d = lower_tri[3];
+    for (int i = 0; i < 3; i++)
+        d += pnt[i] * lower_tri[i];
+      return d;
+  }
+  //! distance of point from upper triangle
+  double get_upper_tri_dist (double *pnt) const
+  {
+    double d = upper_tri[3];
+    for (int i = 0; i < 3; i++)
+        d += pnt[i] * upper_tri[i];
+      return d;
+  }
+
+public:
+  //! Contructors
+  //! base constructor
     Bucket ();
 
-    //! constructor called from Read_data();
+  //! constructor called from Read_data();
     Bucket (
-         //! Hashtable key of the Bucket
-         unsigned *, 
-         //! Minimum coordinates
-         double *, 
-         //! Maximum coordinates
-         double *,
-         //! Bucket type ( over-ground, underground or mixed)
-         int ,
-         //! Boundary type ( LINE or other shape )
-         int ,
-         //! polynomial coefs that define boundary (if its is boundary bucket)
-         double *,
-         //! my procees id
-         int ,
-         //! Neighbor process info
-         int *,
-         //! Array of neighboring buckets HT keys
-         Key * 
-         );
+             //! Hashtable key of the Bucket
+             unsigned *,
+             //! Minimum coordinates
+             double *,
+             //! Maximum coordinates
+             double *,
+             //! Bucket type ( over-ground, underground or boundary)
+             int,
+             //! boundary elevations in order [i,j; i+1,j; i+1,j+1; i,j+1]
+             double *,
+             //! my procees id
+             int,
+             //! Neighbor process info
+             int *,
+             //! Array of neighboring buckets HT keys
+             Key *);
 
+  //! change process id (only called from repartition)
+  void put_myprocess (int myid)
+  {
+    myprocess = myid;
+  }
 
-    //! change process id (only called from repartition)
-    void put_myprocess (int mypid)
-    {
-      myprocess = mypid;
-    }
+  //! put repartition weights
+  void put_lb_weight (double wght)
+  {
+    lb_weight = wght;
+  }
 
-    //! put repartition weights
-    void put_lb_weight (double wght)
-    {
-      lb_weight = wght;
-    }
+  //! mark bucket as guest, i.e. belongs to different proc
+  void put_guest_flag (int fl)
+  {
+    guest_flag = fl;
+  }
 
-    //! mark bucket as guest, i.e. belongs to different proc
-    void put_guest_flag (int fl)
-    {
-      guest_flag = fl;
-    }
+  //! add a particle to the bucket
+  void add_particle (Key pk)
+  {
+    new_plist.push_back (pk);
+  }
 
-    //! get repartition weights
-    double get_lb_weight ()
-    {
-      return lb_weight;
-    }
+  //! put a list of particles
+  void put_plist (vector < Key > pl)
+  {
+    particles = pl;
+  }
 
-    //! Compare hash-table keys for equality
-    bool compare_keys (Key k1, Key k2)
-    {
-      for (int i=0; i < KEYLENGTH; i++ )
-        if ( k1.key[i] != k2.key[i] )
-          return false;
-      return true;
-    }
+  //! put a list of new particles
+  void put_new_plist (vector < Key > pl)
+  {
+    new_plist.insert (new_plist.end (), pl.begin (), pl.end ());
+  }
 
-    //! add a particle to the bucket
-    void add_particle(Key pk)
-    { 
-      new_plist.push_back(pk); 
-    }
+  //! update particles to new particles
+  void update_particles ()
+  {
+    particles = new_plist;
+    new_plist.clear ();
+  }
 
-    //! put a list of particles
-    void put_plist (vector<Key> pl)
-    { 
-      particles = pl;
-    }
+  //! empty particle vector
+  void empty_plist ()
+  {
+    particles.clear ();
+    new_plist.clear ();
+  }
 
-    //! put a list of new particles
-    void put_new_plist(vector<Key> pl)    
-    { 
-      new_plist.insert(new_plist.end(), pl.begin(), pl.end());
-    }
+  //! puts ghosts in underground buckets
+  void add_ghosts (vector < Key > ghosts)
+  {
+    particles.insert (particles.end (), ghosts.begin (), ghosts.end ());
+  }
 
-    //! update particles to new particles
-    void update_particles()               
-    { 
-      particles = new_plist;
-      new_plist.clear();
-    }
+  //! mark the bucket active
+  void mark_active ()
+  {
+    active = true;
+  }
 
-    //! empty particle vector
-    void empty_plist()
-    {
-      particles.clear();
-      new_plist.clear();
-    }
+  //! mark bucket inactive
+  void mark_inactive ()
+  {
+    active = false;
+  }
 
-    //! puts ghosts in underground buckets
-    void add_ghosts(vector<Key> ghosts)
-    { 
-      particles.insert(particles.end(), ghosts.begin(), ghosts.end());
-    }   
+  //! check if point is contained in bucket or not
+  bool contains (double pnt[])
+  {
+    for (int i = 0; i < DIMENSION; i++)
+      if ((pnt[i] < mincrd[i]) || (pnt[i] >= maxcrd[i]))
+        return false;
+    return true;
+  }
 
-    //! mark the bucket active
-    void mark_active()
-    { 
-      active = true;
-    }
+  //! put have real particles flags
+  void set_real_particles (bool flag)
+  {
+    if (flag)
+      particles_type |= FIRST_BIT_UP;
+    else
+      particles_type &= SECND_BIT_UP;
+  }
 
-    //! mark bucket inactive
-    void mark_inactive()
-    { 
-      active = false;
-    }
+  //! put have ghosts
+  void set_ghost_particles (bool flag)
+  {
+    if (flag)
+      particles_type |= SECND_BIT_UP;
+    else
+      particles_type &= FIRST_BIT_UP;
+  }
 
-    //! check if point is contained in bucket or not
-    bool contains(double pnt[])
-    {
-      for (int i=0; i<DIMENSION; i++)
-        if ((pnt[i] < mincrd[i]) || (pnt[i] >= maxcrd[i]))
-          return false;
-      return true;
-    }
+  // update friction_coefs
+  void put_f_coef (double *fcoef)
+  {
+    int npts = PARTICLE_DENSQRD * DIMENSION;
 
-    //! put have real particles flags
-    void put_have_real_particles (bool flag)
-    { 
-      real_part_flag = flag;
-    }
+    for (int i = 0; i < npts; i++)
+      f_coef[i] = *(fcoef + i);
+  }
 
-    //! put have ghosts
-    void put_have_ghost_particles (bool flag)
-    {
-      ghost_part_flag = flag;
-    }
+  // access methods
+  //! Access HT key of current bucket
+  Key getKey () const
+  {
+    return key;
+  }
 
-    // access methods 
-    //! Access HT key of current bucket
-    Key getKey() const
-    {  
-      return key;
-    }
+  //! get my process id
+  int get_myprocess ()
+  {
+    return myprocess;
+  }
 
-    //! get my process id
-    int get_myprocess()
-    {
-      return myprocess;
-    }
+  //! Access minimum coordinates of current bucket
+  const double *get_mincrd () const
+  {
+    return mincrd;
+  }
 
-    //! boundary type ... line or circle?
-    int get_bndtype () const
-    {
-      return boundary_type;
-    }
+  //! Access maximum coordinates of current bucket
+  const double *get_maxcrd () const
+  {
+    return maxcrd;
+  }
 
-    //! Access minimum coordinates of current bucket
-    const double * get_mincrd() const
-    { 
-      return mincrd;
-    }
+  //! Access bucket-type
+  int get_bucket_type ()
+  {
+    return bucket_type;
+  }
 
-    //! Access maximum coordinates of current bucket
-    const double * get_maxcrd() const
-    { 
-      return maxcrd;
-    }
+  //! check if bucket belongs to different proc
+  int is_guest ()
+  {
+    return guest_flag;
+  }
 
-    //! Access boundary normal (if it is a boundary bucket
-    double get_bndnorm(double []) const;
+  //! get repartition weights
+  double get_lb_weight () const
+  {
+    return lb_weight;
+  }
 
-    //! Access bucket-type
-    int get_bucket_type()
-    { 
-      return bucket_type; 
-    }
+  //! Compare hash-table keys for equality
+  bool compare_keys (Key k1, Key k2) const
+  {
+    for (int i = 0; i < KEYLENGTH; i++)
+      if (k1.key[i] != k2.key[i])
+        return false;
+    return true;
+  }
 
-    //! check if bucket belongs to different proc
-    int is_guest()
-    {
-      return guest_flag;
-    }
-    //! Get cofficients of boundary equatons
-    const double * get_bndcoeff() const 
-    { 
-      return poly; 
-    }
+  //! Value of elevation z(x,y) using linear interpolation
+  double get_bndZ (double x[]) const
+  {
+    if (get_lower_tri_dist (x) < get_upper_tri_dist (x))
+      return (-(lower_tri[0] * x[0] + lower_tri[1] * x[1] + lower_tri[3]) /
+              lower_tri[2]);
+    else
+      return (-(upper_tri[0] * x[0] + upper_tri[1] * x[1] + upper_tri[3]) /
+              upper_tri[2]);
+  }
 
-    // Value of elevation z(x,y) ... 
-    // using linear interpolation
-    double get_bndZ (double *x)
-    {
+  // get array of x-boundary points
+  const double *get_bnd_xcrd () const
+  {
+    return bnd_xcrd;
+  }
 
-#ifdef THREE_D
-      return (-(poly[0]*(*x) + poly[1]*(*(x+1)) + poly[3])/poly[2]);
-#else
-      switch ( boundary_type )
-      {
-        case LINE:
-          return ((-poly[0]*(*x) - poly[2])/poly[1]);
-        case CIRCLE:
-          return (poly[1] + sqrt(pow(poly[2],2) - pow(*x-poly[0],2)));
-      }
-#endif
-      return -1.;
-    }
+  // get array of y-boundary points
+  const double *get_bnd_ycrd () const
+  {
+    return bnd_ycrd;
+  }
 
-    // get array of x-boundary points
-    const double * get_bnd_xcrd() const
-    {
-      return bnd_xcrd;
-    }
+  // get array of friction coefficients
+  double get_f_coef (int i, int j, int k) const
+  {
+    return f_coef[i * (PARTICLE_DENSITY + DIMENSION) + j * DIMENSION + k];
+  }
 
-    // get array of y-boundary points
-#ifdef THREE_D
-    const double * get_bnd_ycrd() const
-    {
-      return bnd_ycrd;
-    }
-#endif
-      
-    // get array of friction coefficients
-    const double * get_f_coef() const
-    {
-      return f_coef;
-    }
+  // update neigh_proc
+  void put_neigh_proc (int *, int);
 
-    // update friction_coefs
-    void put_f_coef ( double *fcoef )
-    {
-#ifdef THREE_D
-       int npts = PARTICLE_DENSQRD;
-#else
-       int npts = PARTICLE_DENSITY;
-#endif
-       for (int i=0; i<npts; i++)
-         f_coef[i] = *(fcoef+i);
-    }
+  /*! 
+   * distance of point from the boundary, 
+   * also find point of intersection with perpendicular
+   */
 
-    // update neigh_proc
-    void put_neigh_proc (int *, int );
+  //! Check is the bucket is active/inactive
+  bool is_active () const
+  {
+    return active;
+  }
 
-    /*! 
-     * distance of point from the boundary, 
-     * also find point of intersection with perpendicular
-     */
-    double get_bnddist(double *, double *);
+  //! check if bucket has any real particles
+  bool have_real_particles () const
+  {
+    return (particles_type & FIRST_BIT_UP);
+  }
 
-    //! Check is the bucket is active/inactive
-    bool is_active() const
-    { 
-      return active;
-    }
+  //! check if bucket has ghost particles
+  bool have_ghost_particles () const
+  {
+    return (particles_type & SECND_BIT_UP);
+  }
 
-    //! check if bucket has any real particles
-    bool have_real_particles () const
-    { 
-      return real_part_flag;
-    }
+  //! get list of particles in the current bucket
+  vector < Key > get_plist ()
+  {
+    return particles;
+  }
 
+  //!  array of neighboring buckets
+  Key *get_neighbors ()
+  {
+    return neighbors;
+  }
 
-    //! check if bucket has ghost particles
-    bool have_ghost_particles ()
-    {
-      return ghost_part_flag;
-    }
+  //! get neigh_proc info. neigh_proc also tells if neigh is boundary
+  const int *get_neigh_proc () const
+  {
+    return neigh_proc;
+  }
 
-    //! get list of particles in the current bucket
-    vector<Key> get_plist()
-    { 
-      return particles;
-    }
+  //! get HT key of the neighbor is  up,down etc direction
+  Key which_neigh (int dir[]) const;
 
-    //!  array of neighboring buckets
-    Key * get_neighbors()
-    { 
-      return neighbors;
-    }
+  //! get neigh_proc info in up, down etc direction
+  int which_neigh_proc (int dir[]) const;
 
-    //! get neigh_proc info. neigh_proc also tells if neigh is boundary
-    const int * get_neigh_proc() const
-    { 
-      return neigh_proc;
-    }
+  //! find out direction of the neighbor
+  bool find_neigh_dir (Key k, int dir[]) const;
 
-    //! get HT key of the neighbor is  up,down etc direction
-    Key which_neigh( int dir[] ) const;
+  /*!
+   *  get boundary normal and return 0 if the bucket is a boundary bucket
+   *  else return 1
+   *  @param pnt : coordinates of any point, ususally a SPH particle
+   *  @param normal : cosines of normal to the boundary
+   *  @return 
+   *  0 if current bucket is a boundary bucket, 1 otherwise
+   */
+  int get_bnd_normal (double *pnt, double *normal) const;
 
-    //! get neigh_proc info in up, down etc direction
-    int which_neigh_proc( int dir[] ) const;
+  //!  get distance of point x fom the boundary, 
+  double get_bnddist (double *pnt, double *intsct) const;
 
-    //! find out direction of the neighbor
-    bool find_neigh_dir (Key k, int d[]);
+  //*! Add particles for initial piles. 
+  void add_real_particle (Key k)
+  {
+    active = true;
+    set_real_particles (true);
+    particles.push_back (k);
+  }
 
-    //*! Add particles for initial piles. 
-    void add_real_particle(Key k)
-    {
-       active = true;
-       real_part_flag = true;
-       particles.push_back(k);
-    }
- 
-    //! Add ghost particles to the bucket
-    int put_ghost_particles (
-                //! Particle HashTable
-                HashTable *,
-                //! Background Mesh
-                HashTable *,
-                //! Material properties
-                MatProps *
-              );
+  //! Add ghost particles to the bucket
+  int put_ghost_particles (
+                            //! Particle HashTable
+                            HashTable *,
+                            //! Background Mesh
+                            HashTable *,
+                            //! Material properties
+                            MatProps *);
 
-    //! Mark buckets that contains real particles
-    void add_extra_ghosts (
-                //! Particle HashTable
-                HashTable *,
-                //! Background Mesh
-                HashTable *,
-                //! Material properties
-                MatProps *
-              );
-    void Copy_data (
-                //! void pointer to datastream
-                void *,
-                //! HashTable of particles
-                HashTable *,
-                //! current process id
-                int 
-              );
+  //! Mark buckets that contains real particles
+  void add_extra_ghosts (
+                          //! Particle HashTable
+                          HashTable *,
+                          //! Background Mesh
+                          HashTable *,
+                          //! Material properties
+                          MatProps *);
+  void Copy_data (
+                   //! void pointer to datastream
+                   void *,
+                   //! HashTable of particles
+                   HashTable *,
+                   //! current process id
+                   int);
 };
-
 
 #endif // BUCKET__H

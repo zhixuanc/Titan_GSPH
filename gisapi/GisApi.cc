@@ -19,10 +19,12 @@
 # include <config.h>
 #endif
 
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
+#include <cstdio>
+#include <cmath>
+#include <cstdlib>
+using namespace std;
 
+#include <string.h>
 #ifdef HAVE_MALLOC_H
 #include <malloc.h>
 #endif

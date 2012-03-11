@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -21,7 +22,7 @@
  */
 
 #if (HAVE_CONFIG_H)
-#include <config.h>
+#  include <config.h>
 #endif
 
 #include <cstdio>
@@ -33,14 +34,16 @@ using namespace std;
 #include <bucket.h>
 #include <outforms.h>
 
-void write_matlab (int myid, HashTable *P_table, HashTable *BG_mesh, TimeProps *timeprops)
+void
+write_matlab(int myid, HashTable * P_table, HashTable * BG_mesh,
+             TimeProps * timeprops)
 {
   char file1[20], file2[20];
   static int icount = 0;
   double mincrd[DIMENSION], maxcrd[DIMENSION];
 
-  sprintf(file1, "active%03d%04d.dat",myid, icount);
-  sprintf(file2, "prtcls%03d%04d.dat",myid, icount);
+  sprintf(file1, "active%03d%04d.dat", myid, icount);
+  sprintf(file2, "prtcls%03d%04d.dat", myid, icount);
   icount++;
 
   FILE *fp = fopen(file1, "w");
@@ -48,27 +51,30 @@ void write_matlab (int myid, HashTable *P_table, HashTable *BG_mesh, TimeProps *
 
   HTIterator *itr = new HTIterator(BG_mesh);
   Bucket *buck;
-  while ( (buck = (Bucket *) itr->next()) )
-    if ( buck->is_active() )
+
+  while ((buck = (Bucket *) itr->next()))
+    if (buck->is_active())
     {
-      for (int i=0; i<DIMENSION; i++)
+      for (int i = 0; i < DIMENSION; i++)
       {
-        mincrd[i] = *(buck->get_mincrd()+i);
-        maxcrd[i] = *(buck->get_maxcrd()+i);
+        mincrd[i] = *(buck->get_mincrd() + i);
+        maxcrd[i] = *(buck->get_maxcrd() + i);
       }
-      int buckettype = buck->get_bucket_type ();
-      fprintf(fp,"%e, %e, %e, %e, %d\n", mincrd[0], mincrd[1],
-                 maxcrd[0], maxcrd[1], buckettype);
-      vector<Key> plist = buck->get_plist();
-      vector<Key>::iterator ip;
-      for (ip=plist.begin(); ip!=plist.end(); ip++)
+      int buckettype = buck->get_bucket_type();
+
+      fprintf(fp, "%e, %e, %e, %e, %d\n", mincrd[0], mincrd[1],
+              maxcrd[0], maxcrd[1], buckettype);
+      vector < Key > plist = buck->get_plist();
+      vector < Key >::iterator ip;
+      for (ip = plist.begin(); ip != plist.end(); ip++)
       {
         Particle *p = (Particle *) P_table->lookup(*ip);
         int ghost = (int) p->is_real();
         const double *coord = p->get_coords();
         const double *state_vars = p->get_state_vars();
-        fprintf(f2,"%e, %e, ,%d, %e, %u\n", *(coord), *(coord+1), ghost, 
-                  *(state_vars), p->get_neighs().size());
+
+        fprintf(f2, "%e, %e, ,%d, %e, %u\n", *(coord), *(coord + 1), ghost,
+                *(state_vars), p->get_neighs().size());
       }
     }
   fclose(fp);

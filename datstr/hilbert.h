@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -21,45 +22,41 @@
  */
 
 #ifndef HILBERT_H
-#define HILBERT_H
+#  define HILBERT_H
 
 /* 2D Hilbert Space-filling curve */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#  ifdef __cplusplus
+extern "C"
+{
+#  endif
 
-void hsfc2d(
-  unsigned   coord[] , /* IN: Normalized integer coordinates */
-  unsigned * nkey ,    /* IN: Word length of key */
-  unsigned   key[]    /* OUT: space-filling curve key */
-  );
-
+  void hsfc2d (unsigned coord[],        /* IN: Normalized integer coordinates */
+               unsigned *nkey,  /* IN: Word length of key */
+               unsigned key[]   /* OUT: space-filling curve key */
+    );
 
 /* 3D Hilbert Space-filling curve */
 
-void hsfc3d(
-  unsigned   coord[] , /* IN: Normalized integer coordinates */
-  unsigned * nkey ,    /* IN: Word length of 'key' */
-  unsigned   key[]     /* OUT: space-filling curve key */
-  );
+  void hsfc3d (unsigned coord[],        /* IN: Normalized integer coordinates */
+               unsigned *nkey,  /* IN: Word length of 'key' */
+               unsigned key[]   /* OUT: space-filling curve key */
+    );
 
 /* API for 2-D Hilbert Space Filling Curve */
-void HSFC2d (
-  double     coord[] , /* IN: Normalized floating point coordinates */
-  unsigned * nkey ,    /* IN: Word length of key */
-  unsigned   key[]     /* OUT: space-filling curve key */
-  );
+  void HSFC2d (double coord[],  /* IN: Normalized floating point coordinates */
+               unsigned *nkey,  /* IN: Word length of key */
+               unsigned key[]   /* OUT: space-filling curve key */
+    );
 
 /* API for 3-D Hilbert Space Filling Curve */
-void HSFC3d (
-  double     coord[] , /* IN: Normalized floating point coordinates */
-  unsigned * nkey ,    /* IN: Word length of key */
-  unsigned   key[]    /* OUT: space-filling curve key */
-  );
+  void HSFC3d (double coord[],  /* IN: Normalized floating point coordinates */
+               unsigned *nkey,  /* IN: Word length of key */
+               unsigned key[]   /* OUT: space-filling curve key */
+    );
 
-#ifdef __cplusplus
+#  ifdef __cplusplus
 }
-#endif
+#  endif
 
-#endif // HILBERT_H
+#endif                          // HILBERT_H

@@ -63,50 +63,20 @@ fi
 #-----------------------------------------------------------------------
 AC_ARG_WITH([mpi],
             AS_HELP_STRING([--with-mpi],
-                           [mpich2 is required for parallel build]))
+                           [MPI is required for parallel build]))
 
 # check for MPI installation
 if test "x$enable_parallel" = "xyes"; then
-    # check for MPICH PKG_CONFIG
-    PKG_CHECK_MODULES([MPI],[mpich2-ch3],[mpich2='yes'],[mpich2='no'])
-
-    # check for OPENMPI PKG_CONFIG
-    if test "x$mpich2" = "xno"; then
-        PKG_CHECK_MODULES([MPI],[openmpi],[openmpi='yes'],[openmpi='no'])
-    fi
-
-    # if build is debug, drop all flags except IGNORE_SEEK and include path
-    if test "x$enable_debug" = "xyes" ; then
-        for flag in $MPI_CFLAGS; do
-            MPI_CFLAGS="$MPI_CFLAGS $(echo $flag | grep IGNORE_CXX_SEEK)"
-            MPI_CFLAGS="$MPI_CFLAGS $(echo $flag | grep include)"
-        done
-    fi
-
-    if test "x$mpich2" = "xyes" -o  "x$openmpi" = "xyes"; then
-        CPPFLAGS="$CPPFLAGS $MPI_CFLAGS"
-        CFLAGS="$CFLAGS $MPI_CFLAGS"
-        CXXFLAGS="$CXXFLAGS $MPI_CFLAGS"
-        LDFLAGS="$LDFLAGS $MPICH_LIBS"
-    elif test "x$with_mpi" != "xno"; then
-        CPPFLAGS="$CPPFLAGS -I/$with_mpi/include"
-        CFLAGS="$CFLAGS -I/$with_mpi/include"
-        CXXFLAGS="$CXXFLAGS -I/$with_mpi/include"
-        LDFLAGS="$LDFLAGS -L/$with_mpi/lib"
-    fi
-
-    # check mpi header
-    AC_CHECK_HEADERS([mpi.h])
-
     # check LIBATH to set lib flags
     AC_CHECK_LIB([mpich],[MPI_Init],,[mpich='no'])
     if test "x$mpich" = "xno"; then
         AC_CHECK_LIB([mpi],[MPI_Init],,[openmpi='no'])
     fi
     if test "x$mpich" = "xno" -a "x$openmpi" = "x$no"; then
-        AC_MSG_FAILURE([can't find any mpi library])
+        AC_MSG_FAILURE([can not find any mpi library])
     fi
 fi
+AC_CHECK_HEADERS([mpi.h])
 AM_CONDITIONAL(PARALLEL_BUILD, test "x$enable_parallel" != "xno")
 
 # ---------------------------------------------------------------------------
@@ -140,6 +110,15 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Doxygen stuff
+# ---------------------------------------------------------------------------
+AC_MSG_CHECKING([doumentation])
+AC_ARG_ENABLE(docs,
+              AS_HELP_STRING([--enable-docs],
+                             [run doxygen to generate documentation]))
+AM_CONDITIONAL([BUILD_DOCS], test "x$enable_docs" = "xyes")
+AC_MSG_RESULT([$enable_docs])
+# ---------------------------------------------------------------------------
 # Check for lapack
 # ---------------------------------------------------------------------------
 AC_CHECK_LIB([lapack],[dgesv_])
@@ -154,15 +133,14 @@ AC_ARG_WITH([hdf5],
 if test -n "$with_hdf5"; then
    if test "x$with_hdf5" != "xno"; then
       CPPFLAGS="$CPPFLAGS -I$with_hdf5/include"
-      CFLAGS="$CFLAGS -I$with_hdf5/include"
-      CXXFLAGS="$CXXFLAGS -I$with_hdf5/include"
       LDFLAGS="$LDFLAGS -L$with_hdf5/lib"
    else
-      AC_MSG_FAILURE([can't proceed without hdf5 installtion])
+      AC_MSG_FAILURE([can not proceed without hdf5 installtion])
    fi
 fi
 AC_CHECK_LIB([hdf5],[H5open],,
              [AC_MSG_FAILURE([hdf5 is needed to build this code. Install hdf5 and try again.])])
+AC_CHECK_HEADERS([hdf5.h])
 #-----------------------------------------------------------------------
 # Checks for GDAL libraries.
 #-----------------------------------------------------------------------
@@ -179,13 +157,12 @@ if test -n "$with_gdal" && test "x$with_gdal" != "xno"; then
 fi
 
 
-AC_CHECK_HEADERS([gdal.h])
+AC_CHECK_HEADERS([gdal.h], [malloc.h])
 AC_CHECK_LIB([gdal],[GDALOpen],,)
 AM_CONDITIONAL(HAVE_GDAL, test -n "$with_gdal" && test "x$with_gdal" != "xno")
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([hdf5.h malloc.h])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_C_CONST

@@ -31,22 +31,14 @@ typedef struct
   unsigned key[KEYLENGTH];
   unsigned neighs[NEIGH_SIZE*KEYLENGTH];
   int      buckettype;
-  int      bndtype;
   int      boundary;
   int      myproc;
   int      neigh_proc[NEIGH_SIZE];
   double   xcoord[2];
-#ifdef THREE_D
   double   ycoord[2];
-#endif
   double   zcoord[2];
-#ifdef THREE_D
-  double   poly[4];
-#else
-  double   poly[3];
-#endif
+  double   elev[4];
 
 } BucketStruct;
-
 
 #endif // BUCKETSTR__H

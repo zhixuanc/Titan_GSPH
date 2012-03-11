@@ -1,3 +1,4 @@
+
 /*******************************************************************
  * Copyright (C) 2003 University at Buffalo
  *
@@ -16,9 +17,9 @@
  */
 
 #ifndef EXVAR__H
-#define EXVAR__H
+#  define EXVAR__H
 
-#include <mpi.h>
+#  include <mpi.h>
 
 extern MPI_Datatype BUCKET_TYPE;
 extern MPI_Datatype PARTICLE_TYPE;

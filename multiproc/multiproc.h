@@ -1,3 +1,4 @@
+
 /*
  * =====================================================================================
  *
@@ -20,78 +21,72 @@
  * $Id:$
  */
 
-
 #ifndef MULTIPROC__H
-#define MULTIPROC__H
+#  define MULTIPROC__H
 
-#include <vector>
+#  include <vector>
 using namespace std;
 
-#include <hashtab.h>
-#include <bnd_image.h>
+#  include <hashtab.h>
+#  include <bnd_image.h>
 
-#include "buckhead.h"
+#  include "buckhead.h"
 
 //! register MPI_structs 
 void GMFG_new_MPI_Datatype();
 
 void send_foreign_images(
-     //! My process-id
-     int , 
-     //! Total size of MPI pool
-     int ,
-     //! Hash-Table of SPH particles
-     HashTable *,
-     //! Hash-Table of Buckets
-     HashTable *,
-     //! STL Vector of ghost reflections
-     vector<BndImage> *
-    );
-
+                          //! My process-id
+                          int,
+                          //! Total size of MPI pool
+                          int,
+                          //! Hash-Table of SPH particles
+                          HashTable *,
+                          //! Hash-Table of Buckets
+                          HashTable *,
+                          //! STL Vector of ghost reflections
+                          vector < BndImage > *);
 
 //! Update data across, inter-proc boundaries
 void move_data(
-     //! Number of total processes in the mix
-     int , 
-     //! My process rank 
-     int , 
-     //! Hash-Table of SPH particles
-     HashTable * , 
-     //! Hash-Table of Buckets 
-     HashTable *
-     //! STL vector of ghost reflections
-    );
+                //! Number of total processes in the mix
+                int,
+                //! My process rank 
+                int,
+                //! Hash-Table of SPH particles
+                HashTable *,
+                //! Hash-Table of Buckets 
+                HashTable *
+                //! STL vector of ghost reflections
+  );
 
 //! Update ghost reflections from other processors
 int move_bnd_images(
-     //! My process ID
-     int ,
-     //! Total number of process
-     int ,
-     //! HashTable of particles
-     HashTable *,
-     //! HashTable of buckets
-     HashTable *,
-     //! STL Vector of Images
-     vector<BndImage>
-    );
+                     //! My process ID
+                     int,
+                     //! Total number of process
+                     int,
+                     //! HashTable of particles
+                     HashTable *,
+                     //! HashTable of buckets
+                     HashTable *,
+                     //! STL Vector of Images
+                     vector < BndImage >);
 
 //! repartion the domain if load-balance has changed
-int  repartition(
-     //! STL vector of Partition Table Keys
-     vector<BucketHead> *,
-     //! Hash-Table of SPH particles
-     HashTable * , 
-     //! Hash-Table of Buckets
-     HashTable * 
-    );
+int repartition(
+                 //! STL vector of Partition Table Keys
+                 vector < BucketHead > &,
+                 //! Hash-Table of SPH particles
+                 HashTable *,
+                 //! Hash-Table of Buckets
+                 HashTable *);
 
 //! delete guest buckets and particles
 void delete_guest_buckets(
-     //! Hash-Table of Buckets
-     HashTable *,
-     //! Hash-Table of particles
-     HashTable *
-    );
+                           //! Hash-Table of Buckets
+                           HashTable *,
+                           //! Hash-Table of particles
+                           HashTable *);
 
 #endif // MULTIPROC__H

@@ -12,7 +12,8 @@ preprocess_SOURCES = buckstr.h \
                      hilbert.h hilbert.c \
                      gisapi.h inc_plane.cc
 
-INCLUDES = -I$(top_srcdir)/src
+INCLUDES = -I$(top_srcdir)/src -I$(top_srcdir)/gisapi
            
 
-preprocess_LDADD = $(top_builddir)/src/libgmfghdf5.a
+preprocess_LDADD = $(top_builddir)/src/libgmfghdf5.a \
+                   $(top_builddir)/gisapi/libgisapi.a
