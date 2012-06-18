@@ -124,30 +124,13 @@ update_pos(int myid, HashTable * P_table, HashTable * BG_mesh,
 
           // compute distance from boundary, 
           // ... if current particle is real
-          double bnddist = 1 / TINY;
-
+          double bnddist = 1.E+10;
           if (p_curr->is_real())
           {
             if (curr_bucket->get_bucket_type() == MIXED)
-              bnddist = curr_bucket->get_bnddist(pos, junk);
-            for (i = 0; i < NEIGH_SIZE; i++)
-              if (*(curr_bucket->get_neigh_proc() + i) > -1)
-              {
-                Key tmpkey = *(curr_bucket->get_neighbors() + i);
-                Bucket *neigh = (Bucket *) BG_mesh->lookup(tmpkey);
-
-                if (!(neigh) && (*(curr_bucket->get_neigh_proc() + i) != myid))
-                  continue;
-                assert(neigh);
-                if (neigh->get_bucket_type() == MIXED)
-                {
-                  double temp = neigh->get_bnddist(pos, junk);
-
-                  if (temp < bnddist)
-                    bnddist = temp;
-                }
-              }
+              bnddist = pos[2] - curr_bucket->get_bndZ (pos);
           }
+
           // check if need to add more particles
           if (add_material_check &&
               abs(fluxsrc[0] - pos[0]) < p_curr->get_smlen())
@@ -274,7 +257,7 @@ update_pos(int myid, HashTable * P_table, HashTable * BG_mesh,
       curr_bucket->update_particles();
       int numofp = curr_bucket->get_plist().size();
 
-      if (numofp > 75)
+      if (numofp > 600)
       {
         int nfl = 0, ngh = 0;
 

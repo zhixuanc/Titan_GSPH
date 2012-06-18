@@ -39,25 +39,8 @@ using namespace std;
 
 #include "sph_header.h"
 
-//#define CYLINDERICAL_PILE
-#define TRAPIZOIDAL_PILE
-
-void
-check_bnd_pt(double bndpt[], double mincrd[],
-             double maxcrd[], double bndCoeff[])
-{
-  if (bndpt[2] < mincrd[2])
-  {
-    bndpt[2] = mincrd[2];
-    bndpt[0] = -(bndCoeff[1] * bndpt[1] + bndCoeff[2]) / bndCoeff[0];
-  }
-  else if (bndpt[1] > maxcrd[1])
-  {
-    bndpt[1] = maxcrd[1];
-    bndpt[0] = -(bndCoeff[1] * bndpt[1] + bndCoeff[2]) / bndCoeff[0];
-  }
-  return;
-}
+#define CYLINDERICAL_PILE
+//#define TRAPIZOIDAL_PILE
 
 double
 pile_shape(double crd[], double pcen[], double major, double minor, double hmax)
@@ -92,7 +75,7 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
            PileProps * pileprops, MatProps * matprops, int numproc, int myid)
 {
 
-  int i, j, k, ipile, ierr;
+  int i, j, k, ierr;
   unsigned key[KEYLENGTH];
   unsigned keylen = KEYLENGTH;
   double mincrd[DIMENSION], maxcrd[DIMENSION];
@@ -105,9 +88,9 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
 
   // direction indices on upper bucket
   int Up[DIMENSION] = { 0, 0, 2 };
+  int nump = 0;
 
   // start putting piles
-  int numpile = pileprops->NumPiles;
   double mass = matprops->particle_mass;
   double smlen = matprops->smoothing_length;
   double dx = smlen;
@@ -119,30 +102,28 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
     mindom[i] = *(P_table->get_minDom() + i);
     maxdom[i] = *(P_table->get_maxDom() + i);
   }
-  if (numpile < 1)
+  if (pileprops->NumPiles < 1)
   {
     cerr << "ERROR: unable to run as no pile is defined." << endl;
     exit(0);
   }
 
-  ipile = 0;
-  int root;
-
   // Pile information
-  double major = pileprops->majorrad[ipile];
-  double minor = pileprops->minorrad[ipile];
-  double pheight = pileprops->pileheight[ipile];
-  Key center = pileprops->CenBucket[ipile];
+  i = 0;
+  double major = pileprops->majorrad[i];
+  double minor = pileprops->minorrad[i];
+  double pheight = pileprops->pileheight[i];
+  Key center = pileprops->CenBucket[i];
 
   double major_sqrd = major * major;
+  double minor_sqrd = minor * minor;
 
   Bucket *Cen_buck = (Bucket *) BG_mesh->lookup(center);
-
-  pilecen[0] = pileprops->xCen[ipile];
-  pilecen[1] = pileprops->yCen[ipile];
+  assert (Cen_buck);
+  pilecen[0] = pileprops->xCen[0];
+  pilecen[1] = pileprops->yCen[0];
 
   double zCen;
-
 #ifdef MULTI_PROC
   if (Cen_buck)
     zCen = Cen_buck->get_bndZ(pilecen);
@@ -157,9 +138,22 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
   pilecen[DIMENSION - 1] = Cen_buck->get_bndZ(pilecen);
 #endif
 
+  // debug .....
+#ifdef DEBUG
+  int DOWN[3] = { 0, 0, 1};
+  Bucket * buck_down = (Bucket *) BG_mesh->lookup (Cen_buck->which_neigh (DOWN));
+ 
+  int LEFTIN[3] = {1, 2, 0};
+  Bucket * buck_lefin = (Bucket *) BG_mesh->lookup (Cen_buck->which_neigh (LEFTIN));
+  
+  int UPRIGHTOUT[3] = {2, 2, 2};
+  Bucket * buck_uprout = (Bucket *) BG_mesh->lookup (Cen_buck->which_neigh (UPRIGHTOUT));
+#endif
+  // ... debug
+
   // add particles 
-  HTIterator *itr = new HTIterator(BG_mesh);
-  Bucket *Bnd_buck;
+  HTIterator * itr = new HTIterator(BG_mesh);
+  Bucket * Bnd_buck;
 
   while ((Bnd_buck = (Bucket *) itr->next()))
     if (Bnd_buck->get_bucket_type() == MIXED)
@@ -173,12 +167,10 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
       // negative-negative corner
       bnd1[0] = mincrd[0];
       bnd1[1] = mincrd[1];
-      bnd1[2] = Bnd_buck->get_bndZ(bnd1);
 
       // positive-positive corner
       bnd2[0] = maxcrd[0];
       bnd2[1] = maxcrd[1];
-      bnd2[2] = Bnd_buck->get_bndZ(bnd2);
 
       double d1 = pow(bnd1[0] - pilecen[0], 2) + pow(bnd1[1] - pilecen[1], 2);
       double d2 = pow(bnd2[0] - pilecen[0], 2) + pow(bnd1[1] - pilecen[1], 2);
@@ -188,8 +180,10 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
       double dmax = max(max(d1, d2), max(d3, d4));
       double dmin = min(min(d1, d2), min(d3, d4));
 
+      
       if ((dmax < major_sqrd) || (dmin < major_sqrd))
       {
+        
         int Nx = (int) round((maxcrd[0] - mincrd[0]) / dx);
         int Ny = (int) round((maxcrd[1] - mincrd[1]) / dx);
 
@@ -203,6 +197,7 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
 
             if (Bnd_buck->contains(seed))
               htemp = pile_shape(seed, pilecen, major, minor, pheight);
+
             if (htemp > 0)
             {
               Curr_buck = Bnd_buck;
@@ -224,17 +219,19 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
                     (Bucket *) BG_mesh->lookup(Curr_buck->which_neigh(Up));
                   assert(Curr_buck);
                 }
-                HSFC2d(normc, &keylen, key);
+                HSFC3d (normc, &keylen, key);
                 // check for duplicates
                 if (P_table->lookup(key))
                 {
-                  fprintf(stderr,
-                          "Bummer: Trying to add particle twice on same location\n");
+                  cerr << "ERROR: Trying to add particle "
+                       << "twice on same location." << endl;
                   exit(1);
                 }
-                Particle *pnew = new Particle(key, pcrd, mass, smlen, 0);
-
+                Particle * pnew = new Particle(key, pcrd, mass, smlen, 0);
+               
+                // add to hash-table
                 P_table->add(key, pnew);
+                nump++;
                 tmpkey.copy_key(key);
                 Curr_buck->add_real_particle(tmpkey);
               }
@@ -243,21 +240,44 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
       }
     }
 
+  int ntotal = 0;
+#ifdef MULTI_PROC
+  MPI_Allreduce (&nump, &ntotal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if ( ntotal < 100 )
+  {
+    if ( myid == 0 )
+    {
+      cerr << "No. of particles = " << nump << endl;
+      cerr << "Not enough particles ..." << endl;
+    }
+    MPI_Abort (MPI_COMM_WORLD, 1);
+  }
+#else
+  if ( nump < 100 )
+  {
+    cerr << "No. of particles = " << nump << endl;
+    cerr << "Not enough particles ..." << endl;
+    exit (1);
+  }
+#endif
+ 
   //  mark all neighbors with real particles active
   itr->reset();
   while ((Curr_buck = (Bucket *) itr->next()))
-    if (Curr_buck->get_plist().size() > 0)
-    {
-      Key *nkey = Curr_buck->get_neighbors();
-
-      for (i = 0; i < NEIGH_SIZE; i++)
-        if (*(Curr_buck->get_neigh_proc() + i) == myid)
+  {
+    Curr_buck->mark_inactive ();
+    Key *nkey = Curr_buck->get_neighbors ();
+    for (i = 0; i < NEIGH_SIZE; i++)
+      if (*(Curr_buck->get_neigh_proc () + i) > -1)
+      {
+        Bucket *neigh = (Bucket *) BG_mesh->lookup (nkey[i]);
+        if (neigh->have_real_particles ())
         {
-          Bucket *nbucket = (Bucket *) BG_mesh->lookup(nkey[i]);
-
-          nbucket->mark_active();
+          Curr_buck->mark_active ();
+          break; 
         }
-    }
+      }
+  }
 
   delete itr;
 

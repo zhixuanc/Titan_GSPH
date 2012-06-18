@@ -25,6 +25,8 @@
 #  include <config.h>
 #endif
 
+#define deg2rad(A)  ((A)*(0.01745329252))
+
 #include <iostream>
 #include <string>
 #include <limits>
@@ -53,31 +55,49 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
 
   int i;
   double rotang, intfrict, bedfrict;
-  const double deg2rad = 1.745329251994330e-02;
 
-  ifstream in("simulation.data", ios::in);
+  ifstream inD1 ("scale.data", ios::in);
+  if (inD1.good())
+  {
+    inD1 >> matprops->LENGTH_SCALE;
+    inD1 >> matprops->GRAVITY_SCALE;
+  }
+  else
+  {
+    matprops->LENGTH_SCALE = 1.;
+    matprops->GRAVITY_SCALE = 1.;
+  }
 
-  if (in.fail())
+  ifstream inD2 ("simulation.data", ios::in);
+
+  if (inD2.fail())
   {
     cerr << "ERROR: Can't find \"simulation.data\" input file." << endl;
-    sph_exit(1);
+    exit(1);
   }
   int numpiles;
 
   // Pile properties
-  in >> numpiles;
+  inD2 >> numpiles;
   pileprops->allocpiles(numpiles);
 
   // read data for all the piles
+  double temp;
+  double len_scale = matprops->LENGTH_SCALE;
   for (i = 0; i < numpiles; i++)
   {
-    in >> pileprops->pileheight[i];
-    in >> pileprops->xCen[i];
-    in >> pileprops->yCen[i];
-    in >> pileprops->majorrad[i];
-    in >> pileprops->minorrad[i];
-    in >> rotang;
-    rotang *= deg2rad;
+    inD2 >> temp;
+    pileprops->pileheight[i] = temp / len_scale;
+    inD2 >> temp;
+    pileprops->xCen[i] = temp / len_scale;
+    inD2 >> temp;
+    pileprops->yCen[i] = temp / len_scale;
+    inD2 >> temp;
+    pileprops->majorrad[i] = temp / len_scale;
+    inD2 >> temp;
+    pileprops->minorrad[i] = temp / len_scale;
+    inD2 >> rotang;
+    rotang = deg2rad (rotang);
     pileprops->cosrot[i] = cos(rotang);
     pileprops->sinrot[i] = sin(rotang);
   }
@@ -85,26 +105,26 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
   double time_scale = 1;
 
   // simulation time properties
-  in >> timeprops->max_time;
-  in >> timeprops->max_steps;
-  in >> timeprops->timeoutput;
-  in >> *(format);
+  inD2 >> timeprops->max_time;
+  inD2 >> timeprops->max_steps;
+  inD2 >> timeprops->timeoutput;
+  inD2 >> *(format);
   timeprops->TIME_SCALE = time_scale;
   timeprops->ndtimeoutput = timeprops->timeoutput / time_scale;
   timeprops->ndmax_time = timeprops->max_time / time_scale;
 
   // material properties
-  in >> matprops->P_CONSTANT;
-  in >> matprops->GAMMA;
-  in >> matprops->particle_mass;
-  in >> matprops->smoothing_length;
-  in >> intfrict;
-  in >> bedfrict;
-  matprops->intfrict = deg2rad * intfrict;
+  inD2 >> matprops->P_CONSTANT;
+  inD2 >> matprops->GAMMA;
+  inD2 >> matprops->smoothing_length;
+  inD2 >> intfrict;
+  inD2 >> bedfrict;
+  matprops->particle_mass = pow(matprops->smoothing_length, DIMENSION);
+  matprops->intfrict = deg2rad (intfrict);
   matprops->bedfrict = bedfrict;
   matprops->tanintfrict = tan(matprops->intfrict);
   matprops->sinintfrict = sin(matprops->intfrict);
-  in.close();
+  inD2.close();
 
   // Flux source data
   ifstream influx("fluxsource.data", ios::in);
@@ -116,9 +136,6 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
     influx >> fluxprops->starttime;
     influx >> fluxprops->stoptime;
     influx >> fluxprops->tangvel;
-    double vx = (fluxprops->tangvel * 0.8746);
-
-    timeprops->fluxrate_time = (matprops->smoothing_length) / abs(vx);
   }
   influx.close();
   return 0;
@@ -130,24 +147,23 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
           PileProps * pileprops, FluxProps * fluxprops)
 {
   int No_of_Buckets;
-  int TABLE_SIZE = 400000;
+  int BG_TABLE_SIZE = 100000;
+  int P_TABLE_SIZE = 400000;
   double keyrange[2], mindom[DIMENSION], maxdom[DIMENSION];
   unsigned key[KEYLENGTH];
   Key tempkey;
-  double hvars[8], min_crd[DIMENSION], max_crd[DIMENSION];
+  double hvars[6], min_crd[DIMENSION], max_crd[DIMENSION];
   char filename[14];
-  int Down[DIMENSION] = { 0, 1 };
+  int Down[DIMENSION] = { 0, 0, 1 };
 
   BucketStruct *bucket;
   Key neigh_keys[NEIGH_SIZE];
   int neigh_proc[NEIGH_SIZE];
-  int bndtype;
-  double pcoef[3];
+  double elev[4];
   int i, j, k, myid;
 
   // infinity
   double infty;
-
   if (numeric_limits < double >::has_infinity)
     infty = numeric_limits < double >::infinity();
   else
@@ -163,14 +179,12 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
 
   // Read Hash table constants
   GH5_readdata(fp, "/hashtable_constants", hvars);
-  keyrange[0] = hvars[0];
-  keyrange[1] = hvars[1];
-  mindom[0] = hvars[2];         // min x
-  maxdom[0] = hvars[3];         // max x
-  mindom[1] = hvars[4];         // min y
-  maxdom[1] = hvars[5];         // max y
-  mindom[2] = hvars[6];         // min z
-  maxdom[2] = hvars[7];         // max z
+  mindom[0] = hvars[0];         // min x
+  maxdom[0] = hvars[1];         // max x
+  mindom[1] = hvars[2];         // min y
+  maxdom[1] = hvars[3];         // max y
+  mindom[2] = hvars[4];         // min z
+  maxdom[2] = hvars[5];         // max z
 
   // Create two new Hash-tables
   for (i = 0; i < DIMENSION; i++)
@@ -178,7 +192,9 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
     mindom[i] /= matprops->LENGTH_SCALE;
     maxdom[i] /= matprops->LENGTH_SCALE;
   }
-  *BG_mesh = new HashTable(keyrange, TABLE_SIZE, 2017, mindom, maxdom);
+
+  // create hash-table for back-ground mesh
+  *BG_mesh = new HashTable (BG_TABLE_SIZE, 2017, mindom, maxdom);
 
   // get the size of BG Mesh
   hsize_t dims[2];
@@ -200,11 +216,15 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
     for (j = 0; j < KEYLENGTH; j++)
       key[j] = bucket[i].key[j];
 
-    // coordinates
+    // min coordinates
     min_crd[0] = bucket[i].xcoord[0];
-    min_crd[1] = bucket[i].zcoord[0];
+    min_crd[1] = bucket[i].ycoord[0];
+    min_crd[2] = bucket[i].zcoord[0];
+
+    // max coordinates
     max_crd[0] = bucket[i].xcoord[1];
-    max_crd[1] = bucket[i].zcoord[1];
+    max_crd[1] = bucket[i].ycoord[1];
+    max_crd[2] = bucket[i].zcoord[1];
 
     if (bucket[i].myproc != myid)
     {
@@ -244,23 +264,22 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       }
     }
     // Check if current bucket has center of any of the piles
-    int numpiles = pileprops->NumPiles;
+    double xcen = pileprops->xCen[0];
+    double ycen = pileprops->yCen[0];
 
-    for (j = 0; j < numpiles; j++)
+    if ((bucket[i].buckettype == 2) &&
+        (xcen > min_crd[0]) && (xcen < max_crd[0]) &&
+        (ycen > min_crd[1]) && (ycen < max_crd[1]))
     {
-      double *xcen = pileprops->xCen;
-
-      if ((*(xcen + j) > min_crd[0]) && (*(xcen + j) < max_crd[0]) &&
-          (bucket[i].buckettype == 2))
-      {
-        for (k = 0; k < KEYLENGTH; k++)
-          tempkey.key[k] = bucket[i].key[k];
-        pileprops->CenBucket[j] = tempkey;
-      }
+      for (k = 0; k < KEYLENGTH; k++)
+        tempkey.key[k] = key[k];
+      pileprops->CenBucket[0] = tempkey;
     }
 
     // buckettype flag
     int btflag;
+    for (j = 0; j < 4; j++)
+      elev[j] = 0.;
 
     switch (bucket[i].buckettype)
     {
@@ -269,6 +288,8 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       break;
     case 2:
       btflag = MIXED;
+      for (j = 0; j < 4; j++)
+        elev[j] = bucket[i].elev[j];
       break;
     case 3:
       btflag = OVERGROUND;
@@ -278,20 +299,9 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       exit(1);
     }
 
-    if (bucket[i].boundary == 1)
-    {
-      for (j = 0; j < 3; j++)
-        pcoef[j] = bucket[i].elev[j];
-    }
-    else
-    {
-      bndtype = -1;
-      for (j = 0; j < 3; j++)
-        pcoef[j] = 0;
-    }
-
-    Bucket *buck = new Bucket(key, min_crd, max_crd, btflag, pcoef,
-                              myid, neigh_proc, neigh_keys);
+    // create a new bucket
+    Bucket * buck = new Bucket(key, min_crd, max_crd, btflag, elev,
+                               myid, neigh_proc, neigh_keys);
 
     // just to be consistent everywhere
     if (buck->which_neigh_proc(Down) == -1)
@@ -301,13 +311,14 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       center[0] = 0.5 * (*(buck->get_mincrd()) + *(buck->get_maxcrd()));
       center[1] = 0.5 * (*(buck->get_mincrd() + 1) + *(buck->get_maxcrd() + 1));
       BucketHead bhead(buck->getKey(), center);
-
       partition_tab->push_back(bhead);
     }
     (*BG_mesh)->add(key, buck);
   }
 
+  delete [] bucket;
+
   // Create hash-table for particles 
-  *P_table = new HashTable(keyrange, TABLE_SIZE, 2017, mindom, maxdom);
+  *P_table = new HashTable(P_TABLE_SIZE, 2017, mindom, maxdom);
   return 0;
 }

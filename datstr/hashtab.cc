@@ -34,53 +34,18 @@ using namespace std;
 #define MaxBits ( sizeof(unsigned) * CHAR_BIT )
 #define IScale  ((unsigned)((MaxBits <= 32) ? ~(0u) : (0xffffffff << (MaxBits - 32))))
 
-HashTable::HashTable (unsigned *min, unsigned *max, int size, int prime)
-{
-  MinKey[0] = *min;
-  MinKey[1] = *(min + 1);
-  MaxKey[0] = *max;
-  MaxKey[1] = *(max + 1);
-
-  // extend the hashtable bounds a little bit to make it more efficient for adaptive meshes
-  unsigned hashtable_extender = HASHTABLE_EXTENDER;
-
-  if (MinKey[0] >= hashtable_extender)
-    MinKey[0] -= hashtable_extender;
-  else
-    MinKey[0] = 0;
-  unsigned umax = IScale;
-
-  if ((hashtable_extender / 2 + MaxKey[0] / 2) <= (umax / 2))
-    MaxKey[0] += hashtable_extender;
-  else
-    MaxKey[0] = umax;
-
-  NBUCKETS = size;
-  PRIME = prime;
-  //Range  = *(MaxKey);
-  Range = *(MaxKey) - *(MinKey);        //Keith Made this change 20061109
-
-  bucket = new HashEntryPtr[NBUCKETS];
-
-  for (int i = 0; i < NBUCKETS; i++)
-    bucket[i] = 0;
-
-}
-
-HashTable::HashTable (double *keyrangein, int size, int prime,
-                      double minR[], double maxR[])
+HashTable::HashTable (int size, int prime, double minR[], double maxR[])
 {
   int i;
-
   NBUCKETS = size;
   PRIME = prime;
+  SIZE02 = NBUCKETS / 10;
+  SIZE01 = NBUCKETS - SIZE02;
+  umax = (double) IScale;
 
-  for (i = 0; i < KEYLENGTH; i++)
-    keyrange[i] = keyrangein[i];
 
-  hashconstant = 8.0 * NBUCKETS / (keyrange[0] * keyrange[1] + keyrange[1]);
-
-  bucket = new HashEntryPtr[NBUCKETS];
+  // allocate table-size
+  bucket = new HashEntryPtr [NBUCKETS];
   for (i = 0; i < NBUCKETS; i++)
     bucket[i] = NULL;
 
@@ -88,7 +53,6 @@ HashTable::HashTable (double *keyrangein, int size, int prime,
   {
     minDom[i] = minR[i];
     maxDom[i] = maxR[i];
-    invrange[i] = 1.0 / (maxR[i] - minR[i]);
   }
 }
 
@@ -171,7 +135,7 @@ HashEntryPtr HashTable::addElement (int entry, unsigned key[])
 }
 
 void *
-HashTable::lookup (unsigned *key)
+HashTable::lookup (unsigned * key)
 {
   int entry = hash (key);
   HashEntryPtr p = searchBucket (bucket[entry], key);
@@ -237,17 +201,17 @@ HashTable::remove (unsigned *key)
   }
 }
 
-int
-HashTable::hash (unsigned *key)
+// hash-function
+int HashTable::hash (unsigned * key)
 {
-  int which_entry;
-
-  which_entry =
-    (((int) ((key[0] * keyrange[1] + key[1]) * hashconstant + 0.5)) % NBUCKETS);
-  return which_entry;
+  int i1 = (int) ((double) key[0] / umax * SIZE01);
+  int i2 = (int) ((double) key[1] / umax * SIZE02) ;
+  return (i1 + i2);
 }
 
-// Hashtable iterator
+/***************************************************
+ *          Hashtable iterator
+ ***************************************************/
 HTIterator::HTIterator (HashTable * ht)
 {
   table = ht;

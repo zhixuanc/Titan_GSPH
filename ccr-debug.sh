@@ -1,12 +1,11 @@
 #! /bin/bash
 module purge
-. /util/Modules/3.1.6/init/bash
-module load hdf/5-1.8.6-impi
-module load intel-mpi
-export CXX=mpiicpc
-export CC=mpiicc
+module load use.own
+module load hdf18-intel-mpi
+export CXX=mpicxx
+export CC=mpicc
 export CPPFLAGS=-DMPICH_IGNORE_CXX_SEEK
 make clean
 make distclean
-./configure --disable-3d --enable-parallel-IO --enable-parallel --enable-debug --with-hdf5=$HDF5 
+./configure --enable-paralel --enable-parallel-IO --enable-debug --with-hdf5=$HDF5 
 make && make install

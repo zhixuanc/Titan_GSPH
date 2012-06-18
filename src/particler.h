@@ -49,7 +49,7 @@ int apply_bcond (
                  HashTable *,  //! Hashtable of SPH partilces
                  HashTable *,  //! Background mesh
                  MatProps *,    //! Structure of material properties 
-                 vector<BndImage> *
+                 vector <BndImage> & //! partition table
                 );
 
 //! Put initial piles. All piles are Elliptical-parablpoids
@@ -66,8 +66,8 @@ int mom_update(
                int ,           //! my Proc ID
                HashTable *,    //! HashTable of SPH partilces
                HashTable *,    //! HashTable of Mesh elements
-               MatProps *,     //! Material properties data
-               double          //! time increment for current step
+               MatProps *,     //! Material properties
+               TimeProps *     //! struct for simulation props
               );
 
 //! Read simulation data \f${\it i.e.}\f$ simulation time, output format, pile pros etc

@@ -29,7 +29,6 @@ particler_SOURCES = bcond.cc \
                     outforms.h \
                     particler.h \
                     riemann_solve.h riemann_solve.cc \
-                    setup_rp.cc \
                     timestep.cc \
                     update_pos.cc \
                     write_output.cc \

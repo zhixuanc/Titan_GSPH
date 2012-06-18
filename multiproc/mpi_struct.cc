@@ -43,11 +43,11 @@ GMFG_new_MPI_Datatype ()
   MPI_Datatype types[3];
   MPI_Aint displs[3];
   int d;
-  BucketPack *buck = new BucketPack;
+  BucketPack * buck = new BucketPack;
 
   blockcounts[0] = 5 + NEIGH_SIZE;
   blockcounts[1] = KEYLENGTH * (1 + NEIGH_SIZE + MAX_PARTICLES_PER_BUCKET);
-  blockcounts[2] = (2 * DIMENSION) + 8 + (2 * PARTICLE_DENSITY) +
+  blockcounts[2] = (2 * DIMENSION) + 4 + (2 * PARTICLE_DENSITY) +
     (PARTICLE_DENSQRD * DIMENSION);
   MPI_Address (&(buck->myprocess), &displs[0]);
   MPI_Address (&(buck->key[0]), &displs[1]);
@@ -68,7 +68,7 @@ GMFG_new_MPI_Datatype ()
   MPI_Datatype types2[3];
   MPI_Aint displs2[3];
 
-  ParticlePack *particlePack = new ParticlePack;
+  ParticlePack * particlePack = new ParticlePack;
 
   // 1 int , 2 unsigned, bunch of doubles
   blockcounts2[0] = 1;
@@ -96,7 +96,7 @@ GMFG_new_MPI_Datatype ()
   MPI_Aint displs3[3];
 
   // get adresses
-  BndImage *bndimage = new BndImage ();
+  BndImage * bndimage = new BndImage ();
 
   MPI_Address (&(bndimage->buckproc), &(displs3[0]));
   MPI_Address (&(bndimage->bucket_key), &(displs3[1]));

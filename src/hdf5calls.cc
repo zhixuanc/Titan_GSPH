@@ -203,8 +203,6 @@ GH5_bucketstruct()
   H5Tinsert(newtype, "neighs", HOFFSET(BucketStruct, neighs), H5T_NATIVE_UINT);
   H5Tinsert(newtype, "buckettype", HOFFSET(BucketStruct, buckettype),
             H5T_NATIVE_INT);
-  H5Tinsert(newtype, "boundary", HOFFSET(BucketStruct, boundary),
-            H5T_NATIVE_INT);
   H5Tinsert(newtype, "myproc", HOFFSET(BucketStruct, myproc), H5T_NATIVE_INT);
   H5Tinsert(newtype, "neigh_proc", HOFFSET(BucketStruct, neigh_proc),
             H5T_NATIVE_INT);

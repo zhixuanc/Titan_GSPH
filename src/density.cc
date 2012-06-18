@@ -41,32 +41,32 @@ smooth_density(HashTable * P_table)
   double tmprho, wnorm, wght, density;
   Key tmpkey;
 
-  vector < Key > neighs;
 
   // create a Hash Table iterator instance
-  HTIterator *itr = new HTIterator(P_table);
-  Particle *pi;
+  HTIterator * itr = new HTIterator (P_table);
+  Particle * pi = NULL;
 
   // iterate over the table
-  while (pi = (Particle *) itr->next())
+  while ((pi = (Particle *) itr->next ()))
   {
-    if (pi->is_real())
+    if (pi->is_real ())
     {
       for (i = 0; i < DIMENSION; i++)
-        xi[i] = (*(pi->get_coords() + i));
-      double hi = pi->get_smlen();
-      double supp = 3.0 * hi;
+        xi[i] = (*(pi->get_coords () + i));
 
+      double hi = pi->get_smlen ();
+      double supp = 3.0 * hi;
+      Key ki = pi->getKey ();
       tmprho = 0;
       wnorm = 0;
-      neighs = pi->get_neighs();
-      no_of_neighs = neighs.size();
-      for (j = 0; j < no_of_neighs; j++)
+      vector <Key> neighs = pi->get_neighs ();
+      vector <Key> :: iterator p_itr;
+      for (p_itr = neighs.begin (); p_itr != neighs.end (); p_itr++)
       {
         // get the neighbors
-        Particle *pj = (Particle *) P_table->lookup(neighs[j]);
+        Particle *pj = (Particle *) P_table->lookup (*p_itr);
+        assert (pj);
 
-        assert(pj);
         // guests are included ghosts are not
         if (!pj->is_ghost())
         {

@@ -55,8 +55,8 @@ Particle::Particle (unsigned *keyin, double *crd, double m, double h, int ptype)
   for (i = 0; i < NO_OF_EQNS; i++)
     state_vars[i] = 0;
 
-  for (i = 0; i < DIMSQRD; i++)
-    d_vel[i] = 0;
+  for (i = 0; i < NOEQxDIM; i++)
+    d_state_vars[i] = 0;
 
   state_vars[0] = 1.0;
   return;
@@ -83,8 +83,10 @@ Particle::Particle (unsigned keyin[], double crd[], double ma, double hl,
     coord[i] = crd[i];
     state_vars[1 + i] = vel[i];
     bedfrict[i] = 0;
-    d_vel[i] = 0;
   }
+
+  for (i = 0; i < NOEQxDIM; i++)
+    d_state_vars[i] = 0;
 }
 
 Particle::Particle ()
@@ -108,8 +110,8 @@ Particle::Particle ()
   for (i = 0; i < NO_OF_EQNS; i++)
     state_vars[i] = 0.;
 
-  for (i = 0; i < DIMSQRD; i++)
-    d_vel[i] = 0.;
+  for (i = 0; i < NOEQxDIM; i++)
+    d_state_vars[i] = 0;
 }
 
 bool Particle::operator== (const Particle & rhs) const

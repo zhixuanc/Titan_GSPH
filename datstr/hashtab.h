@@ -27,14 +27,14 @@
 /*---------------------------------------------------------*/
 
 #ifndef HASHTABLE_H
-#  define HASHTABLE_H
+#define HASHTABLE_H
 
-#  include <fstream>
-#  include <iostream>
-#  include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <cstdlib>
 using namespace std;
 
-#  include <constants.h>
+#include <constants.h>
 
 typedef struct
 {
@@ -71,16 +71,16 @@ compare_keys (const Key & K1, const Key & K2)
 
 struct HashEntry
 {
-  unsigned key[KEYLENGTH];      //key: object key word
-  void *value;                  //value: poiter to record
-  HashEntry *pre;               // pre, next: objects with same entry 
-  HashEntry *next;              //   will be stored in a two-way linked-list
+  unsigned key[KEYLENGTH];      // key: object key word
+  void * value;                 // value: poiter to record
+  HashEntry * pre;              // pre, next: objects with same entry 
+  HashEntry * next;             // will be stored in a two-way linked-list
 
-    HashEntry (unsigned *keyi)
+  HashEntry (unsigned * keyi)
   {
     int i;
     for (i = 0; i < KEYLENGTH; i++)
-        key[i] = *(keyi + i);
+        key[i] = keyi[i];
       next = NULL;
       pre = NULL;
   }
@@ -107,33 +107,34 @@ class HashTable
 {
 
 protected:
-  unsigned MinKey[2];
-  unsigned MaxKey[2];
+  unsigned MinKey[KEYLENGTH];
+  unsigned MaxKey[KEYLENGTH];
   unsigned Range;
-  double keyrange[2];
-  double hashconstant;
+  double umax;
   double minDom[DIMENSION];
   double maxDom[DIMENSION];
-  double invrange[DIMENSION];
 
   HashEntryPtr *bucket;
   int NBUCKETS;
   int PRIME;
   int ENTRIES;
+  int SIZE01;
+  int SIZE02;
 
   HashEntryPtr addElement (int entry, unsigned *key);
   HashEntryPtr searchBucket (HashEntryPtr p, unsigned *key);
-  int hash (unsigned *key);
 
 public:
-    HashTable (unsigned *, unsigned *, int, int);
-    HashTable (double *, int, int, double *XR, double *YR);
-   ~HashTable ();
+  HashTable (unsigned *, unsigned *, int, int);
+  HashTable (unsigned *, unsigned *,  int,  int, double *, double *);
+  HashTable (int,  int, double *, double *);
+  ~HashTable ();
 
-  void add (unsigned *key, void *value);
-  void *lookup (unsigned *key);
+  void add (unsigned * key, void * value);
+  void *lookup (unsigned * key);
   void *lookup (Key);
-  void remove (unsigned *key);
+  void remove (unsigned * key);
+  int hash (unsigned * key);
 
   // remove entery
   void remove (Key k)
@@ -143,56 +144,61 @@ public:
       remove (key);
   }
 
-  // add entry
-  void add (Key inkey, void *value)
+  //! add entry to the hash-table
+  void add (Key inkey, void * value)
   {
     unsigned key[KEYLENGTH];
-
     inkey.fill_key (key);
     add (key, value);
   }
 
+  //! get size of the hash-table
   int get_no_of_buckets ()
   {
     return NBUCKETS;
   }
-  HashEntryPtr *getbucketptr ()
+
+  //! get first entry
+  HashEntryPtr * getbucketptr ()
   {
     return bucket;
   }
+
+  //! get i-th bucket
   HashEntryPtr getBucket (int entry)
   {
     return bucket[entry];
   }
-  void *get_value ();
 
-  // Keith's modifications for better hashing
+  //! get min of domain
   double *get_minDom ()
   {
     return minDom;
   }
+
+  //! get max of domain
   double *get_maxDom ()
   {
     return maxDom;
   }
-  double *get_invrange ()
-  {
-    return invrange;
-  }
-  double *get_keyrange ()
-  {
-    return keyrange;
-  }
+
+  //! get min of all keys
   unsigned *get_MinKey ()
   {
     return MinKey;
   }
+
+  //! get max of all keys
   unsigned *get_MaxKey ()
   {
     return MaxKey;
   }
 };
 
+
+/*********************************
+ *  Hash-Table iterator
+ ********************************/
 class HTIterator
 {
 private:

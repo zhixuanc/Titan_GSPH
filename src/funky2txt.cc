@@ -62,9 +62,9 @@ main(int argc, char **argv)
   FILE *f2 = fopen(filename, "w");
 
   for (i = 0; i < num; i++)
-    fprintf(f2, "%e, %e, %e, %e\n",
-            buckets[i].xcoord[0], buckets[i].zcoord[0],
-            buckets[i].xcoord[1], buckets[i].zcoord[1]);
+    fprintf(f2, "%e, %e, %e, %e, %e, %e\n",
+            buckets[i].xcoord[0], buckets[i].ycoord[0], buckets[i].zcoord[0],
+            buckets[i].xcoord[1], buckets[i].ycoord[1], buckets[i].zcoord[1]);
 
   fclose(f2);
   delete[]buckets;

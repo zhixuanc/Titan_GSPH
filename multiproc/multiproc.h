@@ -45,7 +45,7 @@ void send_foreign_images(
                           //! Hash-Table of Buckets
                           HashTable *,
                           //! STL Vector of ghost reflections
-                          vector < BndImage > *);
+                          vector < BndImage > &);
 
 //! Update data across, inter-proc boundaries
 void move_data(
@@ -56,9 +56,7 @@ void move_data(
                 //! Hash-Table of SPH particles
                 HashTable *,
                 //! Hash-Table of Buckets 
-                HashTable *
-                //! STL vector of ghost reflections
-  );
+                HashTable *);
 
 //! Update ghost reflections from other processors
 int move_bnd_images(
@@ -71,7 +69,7 @@ int move_bnd_images(
                      //! HashTable of buckets
                      HashTable *,
                      //! STL Vector of Images
-                     vector < BndImage >);
+                     vector < BndImage > &);
 
 //! repartion the domain if load-balance has changed
 int repartition(

@@ -61,10 +61,7 @@ private:
   double new_state_vars[NO_OF_EQNS];
 
   //! derivatives of 
-  double d_vel[DIMSQRD];
-
-  //! gravity vector
-  double gravity[DIMENSION];
+  double d_state_vars [NOEQxDIM];
 
   //!  neighbors
     vector < Key > neighs;
@@ -166,19 +163,19 @@ public:
     return new_state_vars;
   }
 
-  //!
+  //! get velocity derivatives
   const double *get_d_vel () const
   {
-    return d_vel;
+    return & d_state_vars[DIMENSION];
   }
 
-  //!
-  const double *get_gravity () const
+  //! get gradient matrix
+  const double *get_d_state_vars () const
   {
-    return gravity;
+    return d_state_vars;
   }
 
-  //!
+  //! get table of keys of all neighbors
   vector < Key > get_neighs () const
   {
     return neighs;
@@ -273,10 +270,10 @@ public:
   }
 
   // update slopes
-  void put_d_vel (double *du)
+  void put_d_state_vars (double *du)
   {
-    for (int i = 0; i < DIMSQRD; i++)
-      d_vel[i] = *(du + i);
+    for (int i = 0; i < NOEQxDIM; i++)
+      d_state_vars[i] = du[i];
   }
 
   // update partilce positions
@@ -299,7 +296,7 @@ public:
   }
 
   //! set reflection flag
-  void set_have_reflection (bool val)
+  void set_reflection (bool val)
   {
     reflection = val;
   }

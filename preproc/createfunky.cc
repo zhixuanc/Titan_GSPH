@@ -44,7 +44,7 @@ string create_filename (string base, string ext, const int padding, int myid)
   return ss.str();
 }
 
-void createfunky(int myid, int nhtvars, double *htvars, vector<BucketStruct> *bg)
+void createfunky(int myid, int nhtvars, double * htvars, vector <BucketStruct> & bg)
 {
 
   int i, j;
@@ -61,9 +61,9 @@ void createfunky(int myid, int nhtvars, double *htvars, vector<BucketStruct> *bg
   GH5_WriteS (fp ,"/hashtable_constants", dims1, (void *) htvars, 0, 0, DOUBLETYPE);
 
   // copy vector to an regular array
-  int nbuck = (int) bg->size();
+  int nbuck = (int) bg.size();
   BucketStruct *myBucks = new BucketStruct [nbuck];
-  copy(bg->begin(), bg->end(), myBucks);
+  copy(bg.begin(), bg.end(), myBucks);
 
     // write Background Grid data
   GH5_write_grid_data(fp,"/Buckets", nbuck, myBucks);

@@ -41,7 +41,7 @@ using namespace std;
 #include "sph_header.h"
 #include "hdf5calls.h"
 
-#define WRITE_GHOSTS
+//#define WRITE_GHOSTS
 
 void
 write_h5part(int myid, int numproc, HashTable * P_table, TimeProps * timepros)
@@ -70,8 +70,8 @@ write_h5part(int myid, int numproc, HashTable * P_table, TimeProps * timepros)
 
   while ((pi = (Particle *) itr->next()))
   {
-#ifdef PARALLEL_IO
-    if (!pi->is_guest())
+#ifndef WRITE_GHOSTS
+    if (pi->is_real ())
     {
 #endif
       rho.push_back(pi->get_density());
@@ -82,7 +82,7 @@ write_h5part(int myid, int numproc, HashTable * P_table, TimeProps * timepros)
       my_count++;
       z.push_back(*(pi->get_coords() + 2));
       Vz.push_back(*(pi->get_vel() + 2));
-#ifdef PARALLEL_IO
+#ifndef WRITE_GHOSTS
     }
 #endif
   }
@@ -125,6 +125,7 @@ write_h5part(int myid, int numproc, HashTable * P_table, TimeProps * timepros)
   size = my_count;
   id_lims[myid] = 0;
   id_lims[myid + 1] = size;
+  start = 0;
 #endif
   int dims[2] = { size, 0 };
   double *buf = new double[my_count];

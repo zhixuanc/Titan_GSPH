@@ -15,16 +15,16 @@ struct BND_IMAGE
   //!  coordinate of image
   double coord[DIMENSION];
   //!  interpolate values of state_vars
-  double state_vars_interp[NO_OF_EQNS];
+  double state_vars[NO_OF_EQNS];
 
   // constructor 1
     BND_IMAGE ()
   {
     buckproc = -1;
     partproc = -1;
-    state_vars_interp[0] = 1.0;
+    state_vars[0] = 1.0;
     for (int i = 1; i < NO_OF_EQNS; i++)
-      state_vars_interp[i] = 0;
+      state_vars[i] = 0;
   }
 
   // constructor 2
@@ -45,9 +45,9 @@ struct BND_IMAGE
       coord[i] = *(crd + i);
 
     // inter polated values
-    state_vars_interp[0] = 1.;
+    state_vars[0] = 1.;
     for (i = 1; i < NO_OF_EQNS; i++)
-      state_vars_interp[i] = 0;
+      state_vars[i] = 0;
   }
 };
 

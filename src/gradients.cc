@@ -1,4 +1,3 @@
-
 /*
  * =====================================================================================
  *
@@ -21,6 +20,7 @@
  * $Id:$
  */
 
+
 #include <vector>
 #include <cassert>
 #include <cstdio>
@@ -32,114 +32,147 @@ using namespace std;
 #include "constants.h"
 #include "sph_header.h"
 
-int
-calc_gradients(HashTable * P_table)
+int calc_gradients(HashTable *P_table)
 {
-  int i, j, k;
-  const int SIZE = DIMENSION;
+  int i,j,k;
   double dwdx[DIMENSION];
   double dx[DIMENSION], s[DIMENSION];
-  double gradU[DIMENSION * DIMENSION], d2U[DIMENSION * DIMENSION];
-  double AA[SIZE][SIZE], dd[SIZE][DIMENSION];
-  double ff[SIZE][DIMENSION], V1[SIZE], V2[SIZE];
-  double t1[DIMENSION], t2[DIMENSION];
-
-  vector < Key > neighs;
-  vector < Key >::iterator p_itr;
+  double gradU[NOEQxDIM];
+  double AA[DIMENSION][DIMENSION], dd[DIMENSION][NO_OF_EQNS];
+  double delu[NO_OF_EQNS], ff[DIMENSION][NO_OF_EQNS];
+  double dia1[DIMENSION], dia2[DIMENSION];
+  vector<Key> neighs;
   static int icount = 0;
 
   HTIterator *itr = new HTIterator(P_table);
   Particle *pi;
-
-  while ((pi = (Particle *) itr->next()))
-    if (pi->is_real())
+  while ((pi=static_cast<Particle *>(itr->next()))) 
+    if ( pi->is_real() )
     {
       const double *xi = pi->get_coords();
-      const double *vi = pi->get_vel();
+      const double *ui= pi->get_state_vars();
       double h = pi->get_smlen();
-      double supp = 3 * h;
-
-      neighs = pi->get_neighs();
-      int num_neigh = neighs.size();
+      double supp = 3*h;
+      int nreal=0;
+      neighs = pi->get_neighs();      
 
       // Initialize summation variables to ZERO
-      for (i = 0; i < DIMSQRD; i++)
-        gradU[i] = 0.;
-
       for (i = 0; i < DIMENSION; i++)
       {
-        t1[i] = 0.;
-        t2[i] = 0.;
+        for (j = 0; j < DIMENSION; j++)
+          AA[i][j] = 0;
+        for (j = 0; j < NO_OF_EQNS; j++)
+        {
+          dd[i][j] = 0;
+          gradU[i * NO_OF_EQNS + j] = 0;
+        }
+        dia1[i] = 0.;
+        dia2[i] = 0.;
       }
+     
       // iterate over all the (real) neighbors
-      for (p_itr = neighs.begin(); p_itr != neighs.end(); p_itr++)
+      vector<Key>::iterator p_itr;
+      for (p_itr=neighs.begin(); p_itr!=neighs.end(); p_itr++)
       {
-        Particle *pj = (Particle *) P_table->lookup(*p_itr);
-
+        Particle *pj=static_cast<Particle *>(P_table->lookup(*p_itr));
         if (!pj)
         {
-          fprintf(stderr, "something wrong at:\n");
-          fprintf(stderr, "pi: (%f, %f), pj: (%u, %u) \n",
+          fprintf(stderr,"something wrong at:\n");
+          fprintf(stderr,"pi: (%f, %f), pj: (%u, %u) \n",
                   xi[0], xi[1], neighs[j].key[0], neighs[j].key[1]);
-          fprintf(stderr, "neigh size: %d\n", num_neigh);
+          fprintf(stderr,"neigh size: %d\n", neighs.size());
           return (-2);
         }
 
-        if (*pi == *pj)
-          continue;
-        if (!pj->is_ghost())
+        if ( *pi == *pj ) continue;
+
+        if ( !pj->is_ghost() )
         {
+          nreal++;
           const double *xj = pj->get_coords();
-
-          for (i = 0; i < DIMENSION; i++)
+          for (i=0; i<DIMENSION; i++)
           {
-            dx[i] = xj[i] - xi[i];
-            s[i] = -dx[i] / h;
+            dx[i]  = xj[i] - xi[i];
+            s[i]   = -dx[i]/h;
           }
-          if (in_support(dx, supp))
+          if ( in_support(dx, supp) )
           {
-            double rj = pj->get_density();
-            double tmp = pj->get_mass() / rj;
-            const double *vj = pj->get_vel();
+            const double *uj = pj->get_state_vars();
+            double volj = pj->get_mass()/uj[0];
 
+            // pre-compute weight-gradients
+            for (i=0; i<DIMENSION; i++)
+              dwdx[i] = d_weight(s,h,i);
+
+           // pre-compute Uj - Ui
+            for (i = 0; i < NO_OF_EQNS; i++)
+              delu[i] = uj[i] - ui[i];
+
+            // form the DX matrix
             for (i = 0; i < DIMENSION; i++)
+              for (j = 0; j < DIMENSION; j++)
+                AA[i][j] += volj * dwdx[i] * dx[j];
+
+            // form Df matrix
+            for (i = 0; i < DIMENSION; i++)
+              for (j = 0; j < NO_OF_EQNS; j++)
+                dd[i][j] += volj * dwdx[i] * delu[j];
+
+            for (i =0; i < DIMENSION; i++)
             {
-              dwdx[i] = d_weight(s, h, i);
-              t1[i] += (vj[i] - vi[i]) * tmp * dwdx[i];
-              t2[i] += dx[i] * tmp * dwdx[i];
+              dia1[i] += volj * delu[i+1] * dwdx[i];
+              dia2[i] += volj * dx[i] * dwdx[i];
             }
-            for (i = 0; i < DIMENSION; i++)
-              for (k = 0; k < DIMENSION; k++)
-              {
-                AA[i][k] += dx[k] * dwdx[i] * tmp;
-                dd[i][k] += (vj[k] - vi[k]) * tmp;
-              }
           }
         }
       }
+  
+      linsolve(&AA[0][0], &dd[0][0], NO_OF_EQNS, &ff[0][0]);
 
-      linsolve(&AA[0][0], DIMENSION, &dd[0][0], DIMENSION, &ff[0][0]);
+      // check and save derivatives
+      for (i = 0; i < NO_OF_EQNS; i++)
+        for (j = 0; j < DIMENSION; j++)
+          gradU[i * DIMENSION + j] = ff[j][i];
+
       for (i = 0; i < DIMENSION; i++)
-        for (k = 0; k < DIMENSION; k++)
-          gradU[i * DIMENSION + k] = ff[i][k];
+        gradU[i * NO_OF_EQNS + DIMENSION] = dia1[i] / dia2[i];
 
-      for (i = 0; i < DIMENSION; i++)
-        gradU[i * DIMENSION + i] = t1[i] / t2[i];
-
-      for (i = 0; i < DIMSQRD; i++)
-        if (isnan(gradU[i]))
+      //  if there is a problem ... then die a violent death
+      for (i = 0; i < NOEQxDIM; i++)
+        if (isnan(gradU[i]) && (nreal > 5))
         {
-          fprintf(stderr, "FATAL ERROR: calc_gradients() failed\n");
-          fprintf(stderr, ".. at (%f, %f), no of neighbors: %d \n",
-                  xi[0], xi[1], num_neigh);
+          fprintf(stderr,"FATAL ERROR: calc_gradients() failed\n");
+          fprintf(stderr,".. at (%f, %f), no of neighbors: %d \n", 
+                          xi[0], xi[1], nreal);
+#ifdef DEBUG
+          vector<Key> neighs = pi->get_neighs();
+          vector<Key>::iterator pitr;
+          for (pitr=neighs.begin(); pitr!=neighs.end(); pitr++)
+          {
+            Particle *pj=static_cast<Particle *>(P_table->lookup(*pitr));
+            if (*pi == *pj) continue;
+            if (!pj->is_ghost())
+              fprintf(stderr,"%e, %e, %e, %e\n",
+                      (xi[0]-*(pj->get_coords())),
+                      (xi[1]-*(pj->get_coords()+1)),
+                      (ui[1]-*(pj->get_vel())),
+                      (ui[2]-*(pj->get_vel()+1)));
+          }
+#endif
           return -1;
         }
-      // update values of slopes
-      pi->put_d_vel(gradU);
-    }
 
+      // if particle doesn't have many neighbors, 
+      // it doesn't have gradients
+      if (nreal <= 5)
+        for (i = 0; i < NOEQxDIM; i++)
+          gradU[i] = 0.;
+
+      // update values of slopes
+      pi->put_d_state_vars (gradU);
+    }
+  
   // clean up stuff
   delete itr;
-
   return 0;
 }

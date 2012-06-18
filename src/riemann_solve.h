@@ -26,62 +26,36 @@
 #include "properties.h"
 #include "particle.h"
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
+#define eigen_decomp eigen1d
+
 /*!
  *  reimann_solve() computes Riemann invariants at a 
  *  particle-particle interface.
  */
-int riemann_solve(
-    //! Riemann invariant density at intersection of two particles
-    double *ustar,
-    //! particle P_{i}
-    Particle *pi,
-    //! particle P_{j}
-    Particle *pj,
-    //! Material Properties
-    MatProps *matprops,
-    //! time-step dt
-    double dt
-    );
-
-/*!
- *  setup_rp() calculates the density weighted interface for 
- *  a pair of particles and Interpolates state variables to
- *  setup a Reimann problem at the interface.
- */
-void setup_rp (
-    //! state variables at point i
-    double *Ui,      
-    //! state variables at point j
-    double *Uj,
-    //! states projected at the left inter-particle interface
-    double *U_left,
-    //! states projected at the right inter-particle interface
-    double *U_right,
-    //! inter-particle distance
-    double distance,
-    //! smoothing length at point i
-    double hi,                  
-    //! smoothing length at point j
-    double hj, 
-    //! time step
-    double dt,        
-    //! speed of sound at i
-    double ci,
-    //! speed of sound at j
-    double cj
-    );
+double riemann_solve(
+       //! particle P_{i}
+       Particle *pi,
+       //! particle P_{j}
+       Particle *pj,
+       //! Material Properties
+       MatProps *matprops,
+       //! time-step dt
+       double dt);
 
 extern "C" 
 {
 
 /*!
- * eigen_decomp() solves Riemann problem, setup by setup_rp(). 
+ * eigen () solves Riemann problem, setup by setup_rp(). 
  * Reimann invariants are stored on Ustar. The Reimann Soltion
  * is very much problem specific. Any change in constitutive model
  * requires this function to be modified. 
  */
-
-int eigen_decomp (
+int eigen2d (
     //! density 
     double rho,      
     //! velocity in tangetial direction
@@ -95,8 +69,24 @@ int eigen_decomp (
     //! jumps resolved along eigen-vectors
     double alph[],
     //! eigen-vectors returned by the function
-    double evec[][NO_OF_EQNS]
-    );
-}
+    double evec[][3]);
 
-#endif
+int eigen3d (
+    //! density 
+    double rho,      
+    //! velocity in tangetial direction
+    double ux,
+    //! Velocity of Sound in the medium
+    double c,
+    //! jumps in left and right states
+    double du[],
+    //! eigen-values returned by the function
+    double eval[],
+    //! jumps resolved along eigen-vectors
+    double alph[],
+    //! eigen-vectors returned by the function
+    double evec[][4]);
+
+}// extern "C"
+
+#endif // RIEMANN_SOLVE__H

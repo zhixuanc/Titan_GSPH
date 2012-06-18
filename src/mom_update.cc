@@ -38,30 +38,32 @@ const double sqrt2 = 1.41421356237310;
 
 int
 mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
-           MatProps * matprops, double dt)
+           MatProps * matprops, TimeProps * timeprops)
 {
   int i, j, k;
 
   vector < Key > neighs;
   double dx[DIMENSION], xi[DIMENSION], si[DIMENSION], sj[DIMENSION];
   double dx2[DIMENSION];
-  double ustar[NO_OF_EQNS], rhs[DIMENSION], unew[NO_OF_EQNS];
+  double ustar, rhs[DIMENSION], unew[NO_OF_EQNS];
   double dwdx[DIMENSION], uvecj[DIMENSION];
   double bndcrd[DIMENSION];
   double f_coef[PARTICLE_DENSITY][PARTICLE_DENSITY][DIMENSION];
-  double divergU, bedfrict[DIMENSION], dudx[DIMSQRD];
+  double bedfrict[DIMENSION], dudx[DIMSQRD];
   double tauxy[DIMENSION][2];
   Particle *pi;
 
   // three point gauss-quadrature points
   double gqp[3] = { -0.7746, 0, 0.7746 };
   double gqw[3] = { 0.5556, 0.8889, 0.5556 };
-  double gravity = -1.;
+  double gravity[3] = { 0., 0., -1.};
 
   // friction data
   double tanintfrict = matprops->tanintfrict;
   double sinintfrict = matprops->sinintfrict;
 
+  // time-step
+  double dt = timeprops->dtime;
   HTIterator *itr = new HTIterator(BG_mesh);
   Bucket *buck = NULL;
 
@@ -112,15 +114,15 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
               {
                 bndcrd[0] = *(buck->get_bnd_xcrd() + i);
                 bndcrd[1] = *(buck->get_bnd_ycrd() + j);
-                bndcrd[DIMENSION - 1] = buck->get_bndZ(bndcrd);
+                bndcrd[2] = buck->get_bndZ(bndcrd);
 
                 for (k = 0; k < DIMENSION; k++)
                   dx[k] = xi[k] - bndcrd[k];
                 if (in_support(dx, h3))
                 {
                   for (k = 0; k < DIMENSION; k++)
-                    si[k] = dx[k] / hi;
-                  double w = weight(si, hi);
+                    si[k] = dx[k] / h;
+                  double w = weight(si, h);
 
                   for (k = 0; k < DIMENSION; k++)
                     bedfrict[k] += buck->get_f_coef(i, j, k) * w;
@@ -145,30 +147,33 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
                   for (j = 0; j < PARTICLE_DENSITY; j++)
                   {
                     bndcrd[0] = *(buck_neigh->get_bnd_xcrd() + i);
-                    bndcrd[2] = *(buck_neigh->get_bnd_ycrd() + j);
-                    bndcrd[1] = buck_neigh->get_bndZ(bndcrd);
+                    bndcrd[1] = *(buck_neigh->get_bnd_ycrd() + j);
+                    bndcrd[2] = buck_neigh->get_bndZ(bndcrd);
 
                     for (k = 0; k < DIMENSION; k++)
                       dx[k] = xi[k] - bndcrd[k];
-                    if (in_support(dx, h3))
+                    if (in_support (dx, h3))
                     {
                       for (k = 0; k < DIMENSION; k++)
-                        si[k] = dx[k] / hi;
-                      double w = weight(si, hi);
+                        si[k] = dx[k] / h;
+                      double w = weight(si, h);
 
                       for (k = 0; k < DIMENSION; k++)
-                        bedfrict[k] += buck->get_f_coef(i, j, k) * w;
+                        bedfrict[k] += buck->get_f_coef (i, j, k) * w;
                       wnorm += w;
                     }
                   }
               }
             }
-          for (i = 0; i < DIMENSION; i++)
-            bedfrict[i] /= wnorm;
-          if (isnan(bedfrict[0]) || isnan(bedfrict[1]) || isnan(bedfrict[2]))
+          if ( wnorm > 0 )
           {
-            fprintf(stderr, "ERROR: Getting NaN's for bedfriction values\n");
-            return -2;
+            for (i = 0; i < DIMENSION; i++)
+              bedfrict[i] /= wnorm;
+            if (isnan(bedfrict[0]) || isnan(bedfrict[1]) || isnan(bedfrict[2]))
+            {
+              fprintf(stderr, "ERROR: Getting NaN's for bedfriction values\n");
+              return -2;
+            }
           }
           pi->put_bedfrict(bedfrict);
 
@@ -178,8 +183,7 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
           for (p_itr = neighs.begin(); p_itr != neighs.end(); p_itr++)
           {
             Particle *pj = (Particle *) P_table->lookup(*p_itr);
-
-            assert(pj);
+            assert (pj);
 
             // self contribution is zero as dw(0)=0
             if (*pi == *pj)
@@ -193,29 +197,31 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
               dist += dx[i] * dx[i];
             }
             dist = sqrt(dist);
+            // if dx < 3 * sqrt(2) * h
             if (in_support(dx, supp))
             {
               double mj = pj->get_mass();
               double Vj = 1.0 / pj->get_density();
 
               // solve the Riemann problem between to particles 
-              riemann_solve(ustar, pi, pj, matprops, dt);
-              if (ustar[0] <= 0)
+              ustar = riemann_solve(pi, pj, matprops, dt);
+              if (ustar <= 0)
               {
-                fprintf(stderr, " FATAL ERROR: rho* = %f < 0 \n", ustar[0]);
+                fprintf(stderr, " FATAL ERROR: rho* = %f < 0 \n", ustar);
                 return -1;
               }
-              double pstar = matprops->pressure(ustar[0]);
+              double pstar = matprops->pressure (ustar);
+
 
               // Cij and Dij linear interpolation constants 
               // variable names used in Inutsuka 2003 paper
               double Cij = (Vi - Vj) / dist;
               double Dij = (Vi + Vj) / 2.0;
-              double Vij = pow(pi->get_smlen() * Cij * 0.5, 2.) + pow(Dij, 2.);
+              double Vij = (0.5 * (h *h * Cij * Cij)) + (Dij * Dij);
 
               // pre-compute weight function derivatives
               for (k = 0; k < DIMENSION; k++)
-                dwdx[k] = d_weight(si, hi, k);
+                dwdx[k] = d_weight (si, hi, k);
 
               // Velocity update 
               rhs[0] += -2 * mj * pstar * Vij * dwdx[0];
@@ -223,13 +229,13 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
               rhs[2] += -2 * mj * pstar * Vij * dwdx[2];
 
             }
-          }                     // end loop over neighs
+          } // end loop over neighs
 
           //  calculate divergence 
           for (k = 0; k < DIMSQRD; k++)
             dudx[k] = *(pi->get_d_vel() + k);
 
-          divergU = 0.;
+          double divergU = 0.;
           for (k = 0; k < DIMENSION; k++)
             divergU += dudx[k * DIMENSION + k];
 
@@ -243,31 +249,33 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
             return (-1);
           }
 
-          // shear tractions
+          // stress - deviator
+          /*
           tauxy[0][0] = -sgn(dudx[1]) * abs(rhs[1]);    // dp/dy
           tauxy[0][1] = -sgn(dudx[2]) * abs(rhs[2]);    // dp/dz
           tauxy[1][0] = -sgn(dudx[3]) * abs(rhs[0]);    // dp/dx
           tauxy[1][1] = -sgn(dudx[5]) * abs(rhs[2]);    // dp/dz
           tauxy[2][0] = -sgn(dudx[6]) * abs(rhs[0]);    // dp/dx
           tauxy[2][1] = -sgn(dudx[7]) * abs(rhs[1]);    // dp/dy
+          */
 
           //  x-velocity
-          unew[1] = uvec[1] + dt * (rhs[0] + tauxy[0][1] + tauxy[0][1] +
-                                    bedfrict[0]);
+          unew[1] = uvec[1] + dt * (rhs[0] + gravity[0]);
+
           // y-velocity
-          unew[2] = uvec[2] + dt * (rhs[1] + tauxy[1][0] + tauxy[1][1] +
-                                    bedfrict[1]);
+          unew[2] = uvec[2] + dt * (rhs[1] + gravity[1]);
+
           // z-velocity
-          unew[3] = uvec[3] + dt * (rhs[2] + tauxy[2][0] + tauxy[2][1] +
-                                    gravity + bedfrict[2]);
+          unew[3] = uvec[3] + dt * (rhs[2] + gravity[2]);
+
           pi->put_new_state_vars(unew);
         }
       }
     }
 
+
   // iterate over hashtable to update state_variables
   HTIterator *it2 = new HTIterator(P_table);
-
   while ((pi = (Particle *) it2->next()))
     if (pi->is_real())
       pi->update_state_vars();

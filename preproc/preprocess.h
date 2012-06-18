@@ -24,28 +24,37 @@
 #define PREPROCESS__H
 
 #include <vector>
+#include <iostream>
 using namespace std;
 
 #include <buckstr.h>
 
 struct column_head {
   int xind, yind;
-  int proc;
-  unsigned key[KEYLENGTH];
+  unsigned key2d[2], key[KEYLENGTH];
 
   // constructor
   column_head (int i, int j, unsigned keyi[])
   {
     xind = i;
     yind = j;
-    for (i=0; i < KEYLENGTH; i++ )
+    for (i = 0; i < KEYLENGTH; i++)
       key[i] = keyi[i];
+  }
+
+  bool operator < (const struct column_head & rhs) const
+  {
+    if ( key[0] < rhs.key[0] )
+      return true;
+    else if ( key[0] > rhs.key[0] )
+      return false;
+    else if ( key[1] < rhs.key[1] )
+      return true;
+    else 
+      return false;
   }
 };
 typedef struct column_head ColumnHead;
-
-// 2-D inclined plane
-void GIS_get_elevation ( int, double , double *);
 
 //! Write Background mesh and particle data to HDF5 file
 void createfunky(
@@ -56,7 +65,7 @@ void createfunky(
                  //! Hash Table Constants
                  double *,
                  //! Background grid data
-                 vector<BucketStruct> *
+                 vector<BucketStruct> &
                 );
 
 //! Generate key based on location
@@ -72,15 +81,5 @@ void determine_the_key (
                 //! Min key
                 unsigned minkey[]
                 );
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void dgesv_(int *, int *, double *, int *, int *, double *, int *, int *);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // PREPROCESS__H

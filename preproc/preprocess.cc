@@ -26,6 +26,7 @@
 #endif
 
 #include <iostream>
+#include <fstream>
 #include <cstdlib>
 #include <cmath>
 #include <vector>
@@ -40,8 +41,6 @@ using namespace std;
 
 #include "buckstr.h"
 #include "preprocess.h"
-
-#define MAXKEY ~(0u)
 
 void usage()
 {
@@ -71,11 +70,13 @@ bool compare_keys ( const ColumnHead  & buck1, const ColumnHead & buck2)
     return false;
   else if ( buck1.key[1] < buck2.key[1] )
     return true;
-  else if ( buck1.key[1] > buck2.key[1] )
+  else //if ( buck1.key[1] > buck2.key[1] )
     return false;
   
-   cerr << "ERROR: Two keys match exactly, expand keylength" << endl;
-   exit(1);
+  cerr << "ERROR: Two keys match exactly, expand keylength" << endl;
+  cerr << buck1.key[0] <<", " << buck1.key[1] << " == "
+          << buck2.key[0] <<", " << buck2.key[1] << endl;
+  exit(1);
 }
 
 int main(int argc, char *argv[])
@@ -85,14 +86,13 @@ int main(int argc, char *argv[])
   int np, kk;
   double xcrd[2],ycrd[2], zcrd[2],cntr[DIMENSION],smlen;
   unsigned keylen=KEYLENGTH;
-  unsigned key[KEYLENGTH], max_kc[KEYLENGTH], min_kc[KEYLENGTH];
+  unsigned key[KEYLENGTH], key2[2];
   double mindom[DIMENSION], maxdom[DIMENSION], polyconst[DIMENSION+1];
   string gis_db, gis_location, gis_mapname, gis_mapset;
 
 
   // hashtable constants
-  double htvars[8];
-  double keyrange[2];
+  double htvars[6];
 
   if ( argc != 7 )
     usage();
@@ -119,11 +119,31 @@ int main(int argc, char *argv[])
   Get_xmin(resolution, &mindom[0]);
   Get_ymin(resolution, &mindom[1]);
   Get_elev_min(resolution, &mindom[2]);
-  // max
-  Get_xmax(resolution, &maxdom[0]);
-  Get_ymax(resolution, &maxdom[1]);
-  Get_elev_max(resolution, &maxdom[2]);
 
+  // max
+  Get_xmax (resolution, &maxdom[0]);
+  Get_ymax (resolution, &maxdom[1]);
+  Get_elev_max (resolution, &maxdom[2]);
+
+  /* expand z-span a little bit */
+  // shift min-z by 1.5 times mesh-resolution
+  mindom[2] -= 1.5 * del;
+
+  // read "simulation.data" file
+  ifstream inSim ("simulation.data", ios::out);
+  if ( inSim.fail () )
+  {
+    cerr << "Failed to read \"simulation.data\" file." << endl;
+    exit (1);
+  }
+
+  // increase maxdom by pileheight + 1.5 time mesh-resolution
+  double junk, pheight;
+  inSim >> junk;
+  inSim >> pheight;
+  inSim.close ();
+  maxdom[2] += pheight + 1.5 * del;
+   
   // max number of buckets along each directions
   int nx = (int) ((maxdom[0]-mindom[0])/(del)) + 1;
   int ny = (int) ((maxdom[1]-mindom[1])/(del)) + 1;
@@ -134,23 +154,15 @@ int main(int argc, char *argv[])
   maxdom[2] = mindom[2] + nz*del;
 
   // fill hashtable variables
-  htvars[0] = keyrange[0];
-  htvars[1] = keyrange[1];
-  htvars[2] = mindom[0];
-  htvars[3] = maxdom[0];
-  htvars[4] = mindom[1];
-  htvars[5] = maxdom[1];
-  htvars[6] = mindom[2];
-  htvars[7] = maxdom[2];
+  htvars[0] = mindom[0];
+  htvars[1] = maxdom[0];
+  htvars[2] = mindom[1];
+  htvars[3] = maxdom[1];
+  htvars[4] = mindom[2];
+  htvars[5] = maxdom[2];
 
 
   int Nbucket = nx*ny*nz;
-  for (i=0; i<KEYLENGTH; i++)
-  {
-    min_kc[i] =MAXKEY;
-    max_kc[i] =0;
-  }
-
   vector<ColumnHead> partition_table;
 
   // data-structure for back-ground mesh
@@ -209,7 +221,7 @@ int main(int argc, char *argv[])
         else if ( k > nmax )
         {
           bgmesh[i][j][k].buckettype = 3;
-          for (l=0; k<DIMENSION+1; l++)
+          for (l=0; l<DIMENSION+1; l++)
             bgmesh[i][j][k].elev[l] = 0;
         }
         else
@@ -227,54 +239,67 @@ int main(int argc, char *argv[])
         for ( l=0; l<DIMENSION; l++)
           normc[l]=(cntr[l]-mindom[l])/(maxdom[l]-mindom[l]);
 
-        // determine key and update min-max keys
-        determine_the_key (normc, keylen, key, max_kc, min_kc);
+        // determine key 
+        HSFC3d (normc, & keylen, key);
+  
+        // put key value to BG_mesh structure
         for (l=0; l<KEYLENGTH; l++)
           bgmesh[i][j][k].key[l] = key[l];
         if ( k==0 )
-          partition_table.push_back(ColumnHead(i, j, key));
+        {
+          HSFC2d (normc, & keylen, key2);
+          ColumnHead temp_head (i, j, key2);
+          partition_table.push_back(temp_head);
+        }
       }
     }
   }
 
-  // determin neighbors
-  for (i=0; i<nx; i++)
-    for (j=0; j<ny; j++)
-      for (k=0; k<nz; k++)
-      {
-        int ncount=0;
-        for (int kk=k-1; kk<k+2; kk++)
-          for (int jj=j-1; jj<j+2; jj++)
-            for (int ii=i-1; ii<i+2; ii++)
-            {
-              if ((ii>-1)&&(ii<nx) &&
-                  (jj>-1)&&(jj<ny) &&
-                  (kk>-1)&&(kk<nz))
-              {
-                bgmesh[i][j][k].neighs[ncount++]=bgmesh[ii][jj][kk].key[0];
-                bgmesh[i][j][k].neighs[ncount++]=bgmesh[ii][jj][kk].key[1];
-              }
-              else
-              {
-                bgmesh[i][j][k].neighs[ncount++]=0;
-                bgmesh[i][j][k].neighs[ncount++]=0;
-              }
-            } 
-      }
   // order buckets according to keys
-  sort(partition_table.begin(), partition_table.end(), compare_keys);
+  sort(partition_table.begin(), partition_table.end());
 
   int bucks_per_proc = (nx*ny/np);
-  for (i=0; i < nx*ny; i++ )
+  int nxny = nx * ny;
+  for (i=0; i < nxny; i++ )
   {
     int myid = i/bucks_per_proc;
     if ( myid >= np )  myid = np-1;
     j = partition_table[i].xind;
     k = partition_table[i].yind;
-    partition_table[i].proc = myid;
     for (l=0; l<nz; l++)
       bgmesh[j][k][l].myproc=myid;
   }
+  
+  // determine neighbors
+  for (i=0; i<nx; i++)
+    for (j=0; j<ny; j++)
+      for (k=0; k<nz; k++)
+      {
+        int ncount=0;
+        int npcount=0;
+        for (int ii=i-1; ii<i+2; ii++)
+          for (int jj=j-1; jj<j+2; jj++)
+            for (int kk=k-1; kk<k+2; kk++)
+            {
+              if ((ii>-1)&&(ii<nx) &&
+                  (jj>-1)&&(jj<ny) &&
+                  (kk>-1)&&(kk<nz))
+              {
+                bgmesh[i][j][k].neighs[ncount++] = bgmesh[ii][jj][kk].key[0];
+                bgmesh[i][j][k].neighs[ncount++] = bgmesh[ii][jj][kk].key[1];
+                if ((ii==i) && (jj==j) && (kk==k))
+                  bgmesh[i][j][k].neigh_proc[npcount++] = -2;
+                else
+                  bgmesh[i][j][k].neigh_proc[npcount++] = bgmesh[ii][jj][kk].myproc;
+              }
+              else
+              {
+                bgmesh[i][j][k].neighs[ncount++]=0;
+                bgmesh[i][j][k].neighs[ncount++]=0;
+                bgmesh[i][j][k].neigh_proc[npcount++] = -1;
+              }
+            }
+      }
 
   for (int iproc=0; iproc<np; iproc++)
   {
@@ -284,7 +309,7 @@ int main(int argc, char *argv[])
         for (k=0; k<nz; k++)
           if ( bgmesh[i][j][k].myproc == iproc )
             proc_bucks.push_back(bgmesh[i][j][k]);
-    createfunky (iproc, 8, htvars, &(proc_bucks));
+    createfunky (iproc, 6, htvars, proc_bucks);
     proc_bucks.clear();
   }
 
@@ -311,7 +336,7 @@ void determine_the_key(double norm_coord[], unsigned nkey, unsigned key[],
                              unsigned ma[], unsigned mi[])
 {
   // call Hilbert's Space Filling Curve
-  HSFC2d (norm_coord, &nkey, key);
+  HSFC3d (norm_coord, &nkey, key);
   
   // min-max keys
   if(key[0]>ma[0] || (key[0]==ma[0] && key[1]>ma[1])) {ma[0]=key[0]; ma[1]=key[1];}

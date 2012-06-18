@@ -54,7 +54,7 @@ calc_std_deviation (double mean, double *load_arr, int size)
 }
 
 int
-repartition (vector < BucketHead > &PartitionTable, HashTable * P_table,
+repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
              HashTable * BG_mesh)
 {
   int i, j, k;                  /* local variables */

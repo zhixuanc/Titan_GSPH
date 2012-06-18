@@ -88,22 +88,22 @@ double weight(
  */
 double d_weight(
                  //! sx = (x-xj)/h
-                 double *s,
+                 double * s,
                  //! smoothing length 
                  double h,
                  //! { 0, 1, 2 }: direction of differentiation 
                  int dir);
 
 /*!
- * rotate() rotates the vector of state variables anti-clockwise. 
+ * rotates the vector \f$\mathbf{u}\f$ along unit vector \em cosines.
  * It involves rotation of velocity vector and rotation of stress-tensor.
  * It is used to rotate velocity etc. to inter-particle local coordinate system
  */
 void rotate(
              //! the vector of state variables
-             double *u,
+             double * u,
              //! consines of rotation
-             double *cosines);
+             double * cosines);
 
 /*! 
  * Reflects vector \f$\overline{u}\f$ in plane with \f$\hat{n}\f$
@@ -163,19 +163,41 @@ void matrix_matrix_mult(
  *  Used to compute velocity gradients
  */
 void linsolve(
-               //! Matix A
-               double *A,
-               //! Matix Dimension, i.e. (N x N)
-               int N,
+               //! Matix A (3,3)
+               double * A,
                //! RHS ( set of vectors, in columns )
-               double *b,
+               double * b,
                //! No of vectors in the set, (N x M)
                int M,
-               //! solution (N x M
+               //! solution (N x M)
                double *d);
 
-void sph_exit(
-               //! Error code
-               int);
+void linsolve31 (
+                 //! 3 x 3 Matrix as row-major format (LHS)
+                 double * A,  
+                 //! 3 x 1 column vector (RHS)
+                 double * d,  
+                 //! 3 x 1 solution vector
+                 double * sol);
+
+void lsq_surf3 (
+                //! [x(i), x(i+1)]
+                double * x,
+                //! [y(j), y(j+1)]
+                double * y,
+                //! [z(i,j), ..., z(i,j+1)]
+                double * z,
+                //! polynomial constants
+                double * poly);
+
+void lsq_surf4 (
+                //! [x(i), x(i+1)]
+                double * x,
+                //! [y(j), y(j+1)]
+                double * y,
+                //! [z(i,j), ..., z(i,j+1)]
+                double * z,
+                //! polynomial constants
+                double * poly);
 
 #endif //SPH_HEADER__H

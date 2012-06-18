@@ -34,7 +34,7 @@ using namespace std;
 #include "sph_header.h"
 
 int
-search_neighs(int myid, HashTable * P_table, HashTable * BG_mesh)
+search_neighs (int myid, HashTable * P_table, HashTable * BG_mesh)
 {
   int i, j;
   unsigned tempkey[KEYLENGTH];
@@ -49,8 +49,7 @@ search_neighs(int myid, HashTable * P_table, HashTable * BG_mesh)
   HTIterator *igrd = new HTIterator(BG_mesh);
 
   // iterate over the bucket table
-  Particle *pi, *pj;
-  Bucket *curr_bucket, *neigh_bucket;
+  Bucket *curr_bucket = NULL;
 
   while ((curr_bucket = (Bucket *) igrd->next()))
   {
@@ -61,7 +60,7 @@ search_neighs(int myid, HashTable * P_table, HashTable * BG_mesh)
       vector < Key >::iterator itr;
       for (itr = plist.begin(); itr != plist.end(); itr++)
       {
-        pi = (Particle *) P_table->lookup(*itr);
+        Particle * pi = (Particle *) P_table->lookup(*itr);
         assert(pi);
 
         // 3*sqrt(2) < 4.25
@@ -80,22 +79,21 @@ search_neighs(int myid, HashTable * P_table, HashTable * BG_mesh)
         const int *neigh_proc = curr_bucket->get_neigh_proc();
 
         for (i = 0; i < NEIGH_SIZE; i++)
-          if (*(neigh_proc + i) > -1)
+          if (neigh_proc[i] > -1)
           {
-            neigh_bucket = (Bucket *) BG_mesh->lookup(neighbors[i]);
-            if (!(neigh_bucket) && (*(neigh_proc + i) != myid))
+            Bucket * neigh_buck = (Bucket *) BG_mesh->lookup (neighbors[i]);
+            if ((!neigh_buck) && (neigh_proc[i] != myid))
               continue;
-            assert(neigh_bucket);
-            vector < Key > plist2 = neigh_bucket->get_plist();
+            assert(neigh_buck);
+            vector < Key > plist2 = neigh_buck->get_plist();
             vector < Key >::iterator it2;
             for (it2 = plist2.begin(); it2 != plist2.end(); it2++)
             {
-              pj = (Particle *) P_table->lookup(*it2);
+              Particle * pj = (Particle *) P_table->lookup(*it2);
               assert(pj);
 
-              // get dr to particle j
+              // get difference of position vectors between i,j
               double ds[DIMENSION];
-
               for (j = 0; j < DIMENSION; j++)
                 ds[j] = xi[j] - *(pj->get_coords() + j);
 

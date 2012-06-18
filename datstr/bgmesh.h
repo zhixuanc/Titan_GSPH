@@ -51,7 +51,7 @@ void search_bnd_images (
                          //! Hash-table of buckets
                          HashTable *,
                          //! Vector of Boundary reflections
-                         vector < BndImage > *,
+                         vector < BndImage > &,
                          //! flag to reset image-table
                          int);
 

@@ -42,7 +42,7 @@ update_bgmesh (HashTable * P_table, HashTable * BG_mesh,
   HTIterator *itr = new HTIterator (BG_mesh);
 
   itr = new HTIterator (BG_mesh);
-  while ((curr_bucket = static_cast < Bucket * >(itr->next ())))
+  while ((curr_bucket = (Bucket *) itr->next ()))
     if ((curr_bucket->get_bucket_type () == MIXED) &&
         (curr_bucket->is_active ()) &&
         (!curr_bucket->is_guest ()) && (!curr_bucket->have_ghost_particles ()))
@@ -78,7 +78,7 @@ update_bgmesh (HashTable * P_table, HashTable * BG_mesh,
 
   // visit every bucket 
   itr->reset ();
-  while ((curr_bucket = static_cast < Bucket * >(itr->next ())))
+  while ((curr_bucket = (Bucket *) itr->next ()))
   {
     // mark it inactive to start with
     curr_bucket->mark_inactive ();
@@ -90,6 +90,7 @@ update_bgmesh (HashTable * P_table, HashTable * BG_mesh,
       if (*(curr_bucket->get_neigh_proc () + i) == myid)
       {
         neigh = (Bucket *) BG_mesh->lookup (neigh_buckets[i]);
+        assert (neigh);
         if (neigh->get_plist ().size () > 0)
           curr_bucket->mark_active ();
       }

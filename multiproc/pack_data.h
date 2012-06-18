@@ -58,8 +58,7 @@ struct BUCKET_PACK
   // Doubles
   double mincrd[DIMENSION];
   double maxcrd[DIMENSION];
-  double poly1[4];
-  double poly2[4];
+  double poly[4];
   double bndx[PARTICLE_DENSITY];
   double bndy[PARTICLE_DENSITY];
   double fric[PARTICLE_DENSQRD * DIMENSION];

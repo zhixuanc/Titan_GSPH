@@ -50,8 +50,7 @@ private:
   double bnd_xcrd[PARTICLE_DENSITY];
   double bnd_ycrd[PARTICLE_DENSITY];
   double f_coef[PARTICLE_DENSQRD * DIMENSION];
-  double lower_tri[4];
-  double upper_tri[4];
+  double poly[4];
   bool active;
   bool guest_flag;
   int particles_type;
@@ -61,24 +60,6 @@ private:
   Key neighbors[NEIGH_SIZE];
     vector < Key > particles;
     vector < Key > new_plist;
-
-  // private function calles
-  //! distance of point from lower triangle
-  double get_lower_tri_dist (double *pnt) const
-  {
-    double d = lower_tri[3];
-    for (int i = 0; i < 3; i++)
-        d += pnt[i] * lower_tri[i];
-      return d;
-  }
-  //! distance of point from upper triangle
-  double get_upper_tri_dist (double *pnt) const
-  {
-    double d = upper_tri[3];
-    for (int i = 0; i < 3; i++)
-        d += pnt[i] * upper_tri[i];
-      return d;
-  }
 
 public:
   //! Contructors
@@ -173,7 +154,7 @@ public:
   }
 
   //! check if point is contained in bucket or not
-  bool contains (double pnt[])
+  bool contains (double pnt[]) const
   {
     for (int i = 0; i < DIMENSION; i++)
       if ((pnt[i] < mincrd[i]) || (pnt[i] >= maxcrd[i]))
@@ -263,12 +244,8 @@ public:
   //! Value of elevation z(x,y) using linear interpolation
   double get_bndZ (double x[]) const
   {
-    if (get_lower_tri_dist (x) < get_upper_tri_dist (x))
-      return (-(lower_tri[0] * x[0] + lower_tri[1] * x[1] + lower_tri[3]) /
-              lower_tri[2]);
-    else
-      return (-(upper_tri[0] * x[0] + upper_tri[1] * x[1] + upper_tri[3]) /
-              upper_tri[2]);
+    return (poly[0] * x[0] + poly[1] * x[1] + 
+            poly[2] * x[0] * x[1] + poly[3]);
   }
 
   // get array of x-boundary points
@@ -350,10 +327,15 @@ public:
    *  @return 
    *  0 if current bucket is a boundary bucket, 1 otherwise
    */
-  int get_bnd_normal (double *pnt, double *normal) const;
+  int get_bnd_normal (double * pnt, double * normal) const;
 
   //!  get distance of point x fom the boundary, 
-  double get_bnddist (double *pnt, double *intsct) const;
+  double get_bnddist (double * pnt, double * intsct) const;
+
+  /*! calculate intersection of line and the boundary, such
+   * that the line is normal to boundary at pt. of intersection
+   */
+  int calc_intersection (double * pnt, double * intsct) const;
 
   //*! Add particles for initial piles. 
   void add_real_particle (Key k)

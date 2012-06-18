@@ -45,7 +45,7 @@ using namespace std;
 int
 main(int argc, char **argv)
 {
-  int i, ierr = 0;
+  int i, j, ierr = 0;
   double dt;
   int added_ghosts;
   MatProps *matprops = new MatProps();
@@ -76,8 +76,6 @@ main(int argc, char **argv)
   myid = 0;
 #endif
 
-  extern void write_debug_info(int, HashTable *, int);
-
   //Read input data
   if (Read_Data(matprops, timeprops, pileprops, fluxprops, &format) != 0)
   {
@@ -86,8 +84,7 @@ main(int argc, char **argv)
   }
 
   //read initial particle distribution
-  if (Read_Grid
-      (&P_table, &BG_mesh, &partition_table, matprops, pileprops,
+  if (Read_Grid (&P_table, &BG_mesh, &partition_table, matprops, pileprops,
        fluxprops) != 0)
   {
     cerr << "ERROR: Can't read Initial grid\n";
@@ -102,28 +99,28 @@ main(int argc, char **argv)
 
 #ifdef MULTI_PROC
   // wait till initialization has finished
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier (MPI_COMM_WORLD);
 
   // Initial repartition
-  repartition(partition_table, P_table, BG_mesh);
+  repartition (partition_table, P_table, BG_mesh);
 
   // move data
-  move_data(numprocs, myid, P_table, BG_mesh);
+  move_data (numprocs, myid, P_table, BG_mesh);
 #endif
 
   // search mirror imgaes of ghost particles into boundary
-  search_bnd_images(myid, P_table, BG_mesh, &Image_table, 1);
+  search_bnd_images(myid, P_table, BG_mesh, Image_table, 1);
 
 #ifdef MULTI_PROC
   // send reflections that belong to other procs
-  send_foreign_images(myid, numprocs, P_table, BG_mesh, &Image_table);
+  send_foreign_images(myid, numprocs, P_table, BG_mesh, Image_table);
 #endif
 
-  // apply BC
-  apply_bcond(myid, P_table, BG_mesh, matprops, &Image_table);
+  // apply boundary conditions
+  apply_bcond(myid, P_table, BG_mesh, matprops, Image_table);
 
   // Write inital configuration
-  write_output(myid, numprocs, P_table, BG_mesh, timeprops, format);
+  write_output (myid, numprocs, P_table, BG_mesh, timeprops, format);
 
   while (!timeprops->ifend())
   {
@@ -155,19 +152,16 @@ main(int argc, char **argv)
 
     // velocity gradients for density update
     if (calc_gradients(P_table) != 0)
-    {
-      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
       ierr = 1;
-    }
+
     // update momentum
-    if (mom_update(myid, P_table, BG_mesh, matprops, dt) != 0)
+    if (mom_update(myid, P_table, BG_mesh, matprops, timeprops) != 0)
     {
       cerr << "Momentum update failed on proc" << myid <<
         " at time-step : " << timeprops->step << endl;
-      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
       cerr << "Check outfile for proc " << myid << " for errors." << endl;
       ierr = 2;
-    }
+    } 
 
 #ifdef MULTI_PROC
     // update guests on all procs
@@ -188,15 +182,15 @@ main(int argc, char **argv)
     // update particle positions
     adapt = update_pos(myid, P_table, BG_mesh, fluxprops, timeprops, &lost);
 
-    //if ( fluxprops->have_src && timeprops->addmaterial() )
-    //  update_fluxsrc (P_table, BG_mesh, matprops, fluxprops, timeprops);
+    if ( fluxprops->have_src && timeprops->addmaterial() )
+      update_fluxsrc (P_table, BG_mesh, matprops, fluxprops, timeprops);
 
     // update mesh
-    if (adapt & 1)
+    if (adapt)
     {
       update_bgmesh(P_table, BG_mesh, matprops, myid, &added_ghosts);
       if (added_ghosts)
-        search_bnd_images(myid, P_table, BG_mesh, &Image_table, 0);
+        search_bnd_images(myid, P_table, BG_mesh, Image_table, 0);
     }
 
 #ifdef MULTI_PROC
@@ -208,44 +202,39 @@ main(int argc, char **argv)
     if ((numprocs > 1) && (timeprops->step % 1000 == 0))
     {
       // remove guest buckets and particles
-      delete_guest_buckets(BG_mesh, P_table);
+      delete_guest_buckets (BG_mesh, P_table);
 
       // repartition the domain
-      i = repartition(partition_table, P_table, BG_mesh);
+      i = repartition (partition_table, P_table, BG_mesh);
 
       // send new guests
-      move_data(numprocs, myid, P_table, BG_mesh);
+      move_data (numprocs, myid, P_table, BG_mesh);
 
       // search ghost refections
-      search_bnd_images(myid, P_table, BG_mesh, &Image_table, 1);
+      search_bnd_images (myid, P_table, BG_mesh, Image_table, 1);
 
       // send reflections that belong to other procs
-      send_foreign_images(myid, numprocs, P_table, BG_mesh, &Image_table);
+      send_foreign_images (myid, numprocs, P_table, BG_mesh, Image_table);
     }
 #endif
 
     // apply boundary conditions
-    if (apply_bcond(myid, P_table, BG_mesh, matprops, &Image_table))
-    {
-      write_output(myid, numprocs, P_table, BG_mesh, timeprops, 2);
-      exit(1);
-    }
+    ierr = apply_bcond (myid, P_table, BG_mesh, matprops, Image_table);
 
     // write output if needed
+    //write_output(myid, numprocs, P_table, BG_mesh, timeprops, format);
     if (timeprops->ifoutput())
-      write_output(myid, numprocs, P_table, BG_mesh, timeprops, format);
+      write_output (myid, numprocs, P_table, BG_mesh, timeprops, format);
 
   }
 #ifdef MULTI_PROC
-  move_data(numprocs, myid, P_table, BG_mesh);
+  move_data (numprocs, myid, P_table, BG_mesh);
 #endif
-
-  write_output(myid, numprocs, P_table, BG_mesh, timeprops, format);
 
 #ifdef MULTI_PROC
   finish = MPI_Wtime();
-  MPI_Reduce(&lost, &lostsum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Finalize();
+  MPI_Reduce (&lost, &lostsum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Finalize ();
 #endif
   if (myid == 0)
   {
@@ -255,7 +244,7 @@ main(int argc, char **argv)
     int mins = (int) ((walltime - hours * 3600) / 60);
     double secs = walltime - (hours * 3600) - (mins * 60);
 
-    printf("Computation time for a %d proc run was %d:%02d:%f\n",
+    printf ("Computation time for a %d proc run was %d:%02d:%f\n",
            numprocs, hours, mins, secs);
   }
 

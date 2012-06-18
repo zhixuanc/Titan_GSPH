@@ -21,8 +21,6 @@
  * $Id:$
  */
 
-/* TODO rotations in 3-D   */
-
 #include <cmath>
 using namespace std;
 
@@ -33,92 +31,126 @@ using namespace std;
 #include "sph_header.h"
 #include "riemann_solve.h"
 
-int
-riemann_solve(double ustar[], Particle * p1, Particle * p2, MatProps * mp_ptr,
-              double dt)
+#define SECOND_ORDER
+double 
+riemann_solve (Particle * pi, Particle * pj, 
+              MatProps * matprops, double dt)
 {
 
-  int i, j, N, ierr;
-  double eval[NO_OF_EQNS];      // Eigenvalues
-  double evec[NO_OF_EQNS][NO_OF_EQNS];  // Eigenvectors
-  double dU[NO_OF_EQNS];        // Magnitude of discontinuity
-  double alph[NO_OF_EQNS];      // jumps along Eigenvectors
-  double Usl[NO_OF_EQNS], Usr[NO_OF_EQNS];      // Rotated State Variables
-  double U1[NO_OF_EQNS], U2[NO_OF_EQNS],        // state variables
-    sum_left[NO_OF_EQNS], sum_right[NO_OF_EQNS], Uleft[NO_OF_EQNS], Uright[NO_OF_EQNS]; //reimann states
+  int i;
+  double dU[2];                  // Magnitude of discontinuity
+  double U1[2], U2[2];           // density and speed in e_{ij} direction
+  double Uleft[2], Uright[2];    // left and right states across discontinuity
+  double dUidx[2], dUjdx[2];     // gradients for density and velocity
   double dist, dx[DIMENSION], dir[DIMENSION];
+  double Ui[NO_OF_EQNS], Uj[NO_OF_EQNS];   // state variables
 
+  // get state-variables
   for (i = 0; i < NO_OF_EQNS; i++)
   {
-    U1[i] = (*(p1->get_state_vars() + i));
-    U2[i] = (*(p2->get_state_vars() + i));
+    Ui[i] = (*(pi->get_state_vars() + i));
+    Uj[i] = (*(pj->get_state_vars() + i));
   }
+
+  // get vector xi - xj, and distance
   dist = 0;
   for (i = 0; i < DIMENSION; i++)
   {
-    dx[i] = (*(p1->get_coords() + i) - *(p2->get_coords() + i));
+    dx[i] = (*(pi->get_coords() + i) - *(pj->get_coords() + i));
     dist += dx[i] * dx[i];
   }
-  dist = sqrt(dist);
+
+  // compute n_{ij} unit vector
+  dist = sqrt (dist);
   for (i = 0; i < DIMENSION; i++)
     dir[i] = dx[i] / dist;
 
-  // rotate in the local coordinate direction
-  rotate(U1, dir);
-  rotate(U2, dir);
+  /*
+  // get gradients of state_vars
+  for (i = 0; i < 2; i++)
+  {
+    dUidx[i] = dot ((double *) pi->get_d_state_vars () + i * DIMENSION, dir);
+    dUjdx[i] = dot ((double *) pj->get_d_state_vars () + i * DIMENSION, dir);
+  }
+  */
+  // rotate state-vars along n_{ij}
+  U1[0] = Ui[0];
+  U1[1] = dot (Ui + 1, dir);
+
+  U2[0] = Uj[0];
+  U2[1] = dot (Uj + 1, dir);
+
+  for (i = 0; i < 2; i++)
+  {
+    dUidx[i] = (U1[i] - U2[i]) / dist;
+    dUjdx[i] = (U1[i] - U2[i]) / dist;
+  }
 
   // setup Reimann problem
-  double hi = p1->get_smlen();
-  double ci = mp_ptr->sound_speed(p1->get_density());
-  double hj = p2->get_smlen();
-  double cj = mp_ptr->sound_speed(p2->get_density());
+  double hi = pi->get_smlen();
+  double ci = matprops->sound_speed(pi->get_density());
+  double hj = pj->get_smlen();
+  double cj = matprops->sound_speed(pj->get_density());
 
-  setup_rp(U1, U2, Uleft, Uright, dist, hi, hj, dt, ci, cj);
+  // specific volumes at particle i and j
+  double vi = 1.0 / U1[0];
+  double vj = 1.0 / U2[0];
 
-  for (i = 0; i < NO_OF_EQNS; i++)
+  // linear interpolation of density 
+  double Cij = (vi - vj) / dist;
+  double Dij = (vi + vj) / 2.0;
+
+  // find out specific volume contributions
+  // NOTE: Vij's are squared quantities
+  double vij = (0.5 * (hi * Cij * hi *Cij)) + (Dij * Dij);
+
+  // sstar is the point where we setup RP
+  double sstar = hi * hi * Cij * Dij / (2 * vij);
+  double dsi = sstar + ci * dt / 2.0 - dist / 2.0;
+  double dsj = sstar - cj * dt / 2.0 + dist / 2.0;
+
+  // polynomial reconstruction to setup RP
+  for (i = 0; i < 2; i++)
+  {
+    Uright[i] = U1[i] + dUidx[i] * dsi;
+    Uleft[i] = U2[i] + dUjdx[i] * dsj;
+  }
+
+  for (i = 0; i < 2; i++)
     dU[i] = Uright[i] - Uleft[i];
 
   /* ***********************************
    *    Solve the Riemann problem
    * ***********************************
    */
+  double eval[2], temp[2], t1, c;
 
   // -- using left-side data
-  for (i = 0; i < NO_OF_EQNS; i++)
-    sum_left[i] = 0;
+  c = matprops->sound_speed (Uleft[0]);
+  eval[0] = Uleft[1] - c;
+  eval[1] = Uleft[1] + c;
+  t1 = Uleft[0] / c;
+  temp[0] = 0.5 * (dU[0] - dU[1] * t1);
+  temp[1] = 0.5 * (dU[0] + dU[1] * t1);
 
-  // eigen structure
-  double cl = mp_ptr->sound_speed(Uleft[0]);
-
-  ierr = eigen_decomp(Uleft[0], Uleft[1], cl, dU, eval, alph, evec);
-
-  for (i = 0; i < NO_OF_EQNS; i++)
-    if (eval[i] < 0)
-      for (j = 0; j < NO_OF_EQNS; j++)
-        sum_left[j] += alph[i] * evec[j][i];
-
-  // evaluate star values.
-  for (i = 0; i < NO_OF_EQNS; i++)
-    Usl[i] = Uleft[i] + sum_left[i];
+  double rhol = Uleft [0];
+  for (i = 0; i < 2; i++ )
+    if ( eval[i] < 0 )
+      rhol += temp[i];
 
   // -- using right-side data
-  for (i = 0; i < NO_OF_EQNS; i++)
-    sum_right[i] = 0;
+  c = matprops->sound_speed (Uright[0]);
+  eval[0] = Uright[1] - c;
+  eval[1] = Uright[1] + c;
+  t1 = Uright[0] / c;
+  temp[0] = 0.5 * (dU[0] - dU[1] * t1);
+  temp[1] = 0.5 * (dU[0] + dU[1] * t1);
 
-  double cr = mp_ptr->sound_speed(Uright[0]);
-
-  ierr = eigen_decomp(Uright[0], Uright[1], cr, dU, eval, alph, evec);
-  for (i = 0; i < NO_OF_EQNS; i++)
-    if (eval[i] > 0)
-      for (j = 0; j < NO_OF_EQNS; j++)
-        sum_right[j] += alph[i] * evec[j][i];
-
-  for (i = 0; i < NO_OF_EQNS; i++)
-    Usr[i] = Uright[i] - sum_right[i];
+  double rhor = Uright [0];
+  for (i = 0; i < 2; i++ )
+    if ( eval[i] > 0 )
+      rhor -= temp[i];
 
   // Although they should be equal, we'll average them anyway
-  for (i = 0; i < DIMENSION; i++)
-    ustar[i] = 0.5 * (Usl[i] + Usr[i]);
-
-  return 0;
+  return  (0.5 * (rhol + rhor));
 }

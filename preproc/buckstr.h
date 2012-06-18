@@ -31,7 +31,6 @@ typedef struct
   unsigned key[KEYLENGTH];
   unsigned neighs[NEIGH_SIZE*KEYLENGTH];
   int      buckettype;
-  int      boundary;
   int      myproc;
   int      neigh_proc[NEIGH_SIZE];
   double   xcoord[2];

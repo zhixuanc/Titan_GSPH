@@ -16,8 +16,8 @@
  * $Id:$ 
  */
 
-#ifndef BUCKET__HEAD_
-#  define BUCKET__HEAD_
+#ifndef BUCKET_HEAD__H
+#  define BUCKET_HEAD__H
 
 #  include <hashtab.h>
 
@@ -29,21 +29,21 @@ protected:
 
 public:
   //! constructor
-    BucketHead(Key k, double *x)
+  BucketHead(Key keyi, double * crd)
   {
-    head = k;
+    head = keyi;
     for (int i = 0; i < 2; i++)
-      coord[i] = x[i];
+      coord[i] = crd[i];
   }
 
   //! get key of first bucket
-  Key get_head() const
+  Key get_head () const
   {
     return head;
   }
 
   //! get cooord
-  const double *get_coord() const
+  const double * get_coord () const
   {
     return coord;
   }
@@ -55,4 +55,4 @@ public:
   }
 };
 
-#endif //BUCKET__HEAD_
+#endif //BUCKET_HEAD__H

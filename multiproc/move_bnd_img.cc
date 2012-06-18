@@ -31,7 +31,7 @@ using namespace std;
 
 int
 move_bnd_images (int myid, int nump, HashTable * P_table,
-                 HashTable * BG_mesh, vector < BndImage > Image_table)
+                 HashTable * BG_mesh, vector < BndImage > & Image_table)
 {
 
   if (nump < 2)
@@ -52,18 +52,16 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
     recv_flag[i] = false;
   }
 
-  /* a proc can recv from its neighbors only, but will not always do so
-   * depending up the boundary orientation. Thus we'll have to check for
-   * the possiblity of recv, even if there is zero send to the proc
-   */
+  /* a proc should recv from its neighbors only */
   HTIterator *itr = new HTIterator (BG_mesh);
   Bucket *buck = NULL;
 
   while ((buck = (Bucket *) itr->next ()))
-    if (buck->is_active () && !(buck->is_guest ()) &&
+    if (buck->is_active () && 
+        (!buck->is_guest ()) &&
         (buck->get_bucket_type () == MIXED))
     {
-      const int *neigh_proc = buck->get_neigh_proc ();
+      const int * ineigh_proc = buck->get_neigh_proc ();
 
       for (i = 0; i < NEIGH_SIZE; i++)
         if ((neigh_proc[i] > -1) && (neigh_proc[i] != myid))
@@ -102,7 +100,6 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
       k = MPI_Wait ((req + i), &status);
 
   delete[]req;
-  //MPI_Alltoall(send_info, 1, MPI_INT, recv_info, 1, MPI_INT, MPI_COMM_WORLD);
 
   //  allocate recv_buffer
   BndImage **recv_buf = new BndImage *[nump];
@@ -158,7 +155,7 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
           (Particle *) P_table->lookup (recv_buf[j][k].ghost_key);
         assert (pghost);
         for (int i2 = 0; i2 < NO_OF_EQNS; i2++)
-          uvec[i2] = recv_buf[j][k].state_vars_interp[i2];
+          uvec[i2] = recv_buf[j][k].state_vars[i2];
         pghost->put_state_vars (uvec);
       }
     }
@@ -189,7 +186,7 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
 // send reflctions that belong to neighboring partitions
 void
 send_foreign_images (int myid, int numprocs, HashTable * P_table,
-                     HashTable * BG_mesh, vector < BndImage > *Image_table)
+                     HashTable * BG_mesh, vector < BndImage > & Image_table)
 {
 
   if (numprocs < 2)
@@ -208,7 +205,7 @@ send_foreign_images (int myid, int numprocs, HashTable * P_table,
 
   // count number of BoundaryImages to send to other procs
   vector < BndImage >::iterator i_img;
-  for (i_img = Image_table->begin (); i_img != Image_table->end (); i_img++)
+  for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
     if (i_img->buckproc != myid)
       send_info[i_img->buckproc]++;
 
@@ -250,7 +247,7 @@ send_foreign_images (int myid, int numprocs, HashTable * P_table,
   for (i = 0; i < numprocs; i++)
     count[i] = 0;
 
-  for (i_img = Image_table->begin (); i_img != Image_table->end (); i_img++)
+  for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
     if (i_img->buckproc != myid)
     {
       j = i_img->buckproc;
@@ -273,7 +270,7 @@ send_foreign_images (int myid, int numprocs, HashTable * P_table,
     {
       j = MPI_Wait (&recv_req[i], &status);
       for (j = 0; j < recv_info[i]; j++)
-        Image_table->push_back (recvbuf[i][j]);
+        Image_table.push_back (recvbuf[i][j]);
     }
 
   // clean up

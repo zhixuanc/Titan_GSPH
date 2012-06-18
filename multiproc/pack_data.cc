@@ -71,10 +71,7 @@ void pack_bucket (BucketPack *buckpack, Bucket *sendbuck, int process)
 
   // boundary fucntion
   for (i=0; i<4; i++)
-  {
-    buckpack->poly1[i] = sendbuck->lower_tri[i];
-    buckpack->poly2[i] = sendbuck->upper_tri[i];
-  }
+    buckpack->poly[i] = sendbuck->poly[i];
 
   // boundary points and value of friction coeficents
   if ( sendbuck->get_bucket_type() == MIXED )
@@ -151,8 +148,7 @@ void unpack_bucket (BucketPack *recvdBuck, Bucket *buck, int myid)
 
   for ( i=0; i < 4; i++ )
   {
-    buck->lower_tri[i] = recvdBuck->poly1[i];
-    buck->upper_tri[i] = recvdBuck->poly2[i];
+    buck->poly[i] = recvdBuck->poly[i];
   }
 
   // if the bucket is a boundary bucket, get unpack boundary points

@@ -31,7 +31,7 @@ using namespace std;
 #include <particle.h>
 #include <hilbert.h>
 #include <hashtab.h>
-
+#include <sph_header.h>
 #include "bucket.h"
 
 int ineigh[3][3][3] = { {{13, 12, 14}, {10, 9, 11}, {16, 15, 17}},
@@ -39,10 +39,8 @@ int ineigh[3][3][3] = { {{13, 12, 14}, {10, 9, 11}, {16, 15, 17}},
 {{22, 21, 23}, {19, 18, 17}, {25, 24, 26}}
 };
 
-void surffit (double *, double *, double *);
-
 // constructors
-Bucket::Bucket (unsigned *k, double *minx, double *maxx, int buck_type,
+Bucket::Bucket (unsigned *keyi, double *minx, double *maxx, int buck_type,
                 double *elev, int myid, int *nproc, Key * neigh)
 {
   int i;
@@ -56,7 +54,7 @@ Bucket::Bucket (unsigned *k, double *minx, double *maxx, int buck_type,
   particles_type = 0;
 
   for (i = 0; i < KEYLENGTH; i++)
-    key.key[i] = k[i];
+    key.key[i] = keyi[i];
 
   for (i = 0; i < DIMENSION; i++)
   {
@@ -90,30 +88,31 @@ Bucket::Bucket (unsigned *k, double *minx, double *maxx, int buck_type,
   particles.clear ();
   new_plist.clear ();
 
-  // fit lower triangle
-  coordMatix[0] = mincrd[0];    //x(i)
-  coordMatix[1] = mincrd[1];    //y(i)
-  coordMatix[2] = 1;
-  coordMatix[3] = maxcrd[0];    //x(i+1)
-  coordMatix[4] = mincrd[1];    //y(i)
-  coordMatix[5] = 1;
-  coordMatix[6] = maxcrd[0];    //x(i+1)
-  coordMatix[7] = maxcrd[1];    //x(i+1)
-  coordMatix[8] = 1;
-  surffit (coordMatix, elev, lower_tri);
+//(i,j+1)_________ (i+1,j+1)
+//    |          /|
+//    |        /  |
+//    |      /    |
+//    |    /      |
+//    |  /        |
+//    |/          |
+//(i,j)-----------(i+1,j)
+//   
+  for (i = 0; i < 4; i++)
+    poly[i] = 0.;
 
-  // fit upper triangle
-  coordMatix[0] = maxcrd[0];    //x(i+1)
-  coordMatix[1] = maxcrd[1];    //y(i+1)
-  coordMatix[2] = 1;
-  coordMatix[3] = mincrd[0];    //x(i)
-  coordMatix[4] = maxcrd[1];    //y(i+1)
-  coordMatix[5] = 1;
-  coordMatix[6] = mincrd[0];    //x(i)
-  coordMatix[7] = mincrd[0];    //x(i)
-  coordMatix[8] = 1;
-  surffit (coordMatix, elev + 1, lower_tri);
-
+  if (bucket_type == MIXED)
+  {
+    double xcrd[2], ycrd[2];
+    xcrd[0] = mincrd[0];    //x(i)
+    xcrd[1] = maxcrd[0];    //x(i+1)
+    ycrd[0] = mincrd[1];    //y(j)
+    ycrd[1] = maxcrd[1];    //y(j+1)
+    lsq_surf4 (xcrd, ycrd, elev, poly);
+    bool printit = false;
+    for (i=0; i<4; i++)
+      if (isnan (poly[i]))
+        exit (51);
+  }
 } // end constuctor
 
 Bucket::Bucket ()
@@ -133,10 +132,8 @@ Bucket::Bucket ()
   }
 
   for (i = 0; i < 4; i++)
-  {
-    lower_tri[i] = 0.;
-    upper_tri[i] = 0.;
-  }
+    poly[i] = 0.;
+
 
   for (i = 0; i < NEIGH_SIZE; i++)
   {
@@ -149,26 +146,29 @@ Bucket::Bucket ()
   return;
 }
 
-//! boundary normal from point x, if its a boundary bucket
+/*! boundary normal from point \f$\mathbf{x}\f$, provided
+ * /f$ \mathbf{x} \in \Gamma^i\f$.
+ */
 int
 Bucket::get_bnd_normal (double pnt[], double normal[]) const
 {
-  if (bucket_type == MIXED)
-  {
-    if (abs (get_lower_tri_dist (pnt)) < abs (get_upper_tri_dist (pnt)))
-      for (int i = 0; i < 3; i++)
-        normal[i] = lower_tri[i];
-    else
-      for (int i = 0; i < 3; i++)
-        normal[i] = upper_tri[i];
-    return 0;
-  }
-  else
-  {
-    for (int i = 0; i < DIMENSION; i++)
-      normal[i] = 0.;
-    return -1;
-  }
+  int i;
+
+  // if this isn't a boundary bucket, it shouldn't
+  if ( bucket_type != MIXED )
+    return 1;
+  normal[0] = -(poly[0] + poly[2] * pnt[1]);    // P1 + P3*x
+  normal[1] = -(poly[1] + poly[2] * pnt[0]);    // P2 + P3*y
+  normal[2] = 1.;
+
+  // normalize
+  double d = 0.;
+  for (i = 0; i < DIMENSION; i++)
+    d += normal[i] * normal[i];
+
+  for (i = 0; i < DIMENSION; i++)
+    normal[i] /= sqrt(d);
+  return 0;
 }
 
 Key
@@ -234,22 +234,21 @@ Bucket::find_neigh_dir (Key neigh, int dir[]) const
 double
 Bucket::get_bnddist (double pnt[], double intsct[]) const
 {
-  int i;
-  double d1 = get_lower_tri_dist (pnt);
-  double d2 = get_upper_tri_dist (pnt);
-
-  if (abs (d1) < abs (d2))
+  if (bucket_type == MIXED)
   {
-    for (i = 0; i < DIMENSION; i++)
-      intsct[i] = pnt[i] - d1 * lower_tri[i];
-    return d1;
+    calc_intersection (pnt , intsct);
+    if ( this->contains (intsct) )
+    {
+      double d = 0;
+      for (int i=0; i<DIMENSION; i++)
+        d += (pnt[i] - intsct[i]) * (pnt[i] - intsct[i]);
+      return sqrt (d);
+    }
+    else
+      return 1.E+10;
   }
   else
-  {
-    for (i = 0; i < DIMENSION; i++)
-      intsct[i] = pnt[i] - d2 * upper_tri[i];
-    return d2;
-  }
+    return 1.E+10;
 }
 
 // put ghost particles in active buckets
@@ -279,13 +278,14 @@ Bucket::put_ghost_particles (HashTable * P_table,
   for (i = 0; i < DIMENSION; i++)
   {
     maxdom[i] = *(P_table->get_maxDom () + i);
+    mindom[i] = *(P_table->get_minDom () + i);
   }
 
   // particle properties
   double ma = matprops->particle_mass;
   double hl = matprops->smoothing_length;
-  double dx = hl;
-  double dx2 = 0.5 * dx;
+  double del = hl;
+  double del2 = 0.5 * del;
   double seed[DIMENSION];
 
   // get handle to the neigh below
@@ -303,33 +303,31 @@ Bucket::put_ghost_particles (HashTable * P_table,
       seed[1] = bnd_ycrd[j];
       seed[2] = get_bndZ (seed);
 
-      int iend = DIMENSION - 1;
-
       if (this->contains (seed))
       {
         // put particles
-        for (k = 0; k < DIMENSION - 1; k++)
-          crd[k] = seed[k];
+        crd[0] = seed[0];
+        crd[1] = seed[1];
 
         for (int ighost = 0; ighost < NUM_GHOST_ROWS; ighost++)
         {
-          crd[DIMENSION - 1] = seed[DIMENSION - 1] - dx2 - ighost * dx;
+          crd[2] = seed[2] - del2 - ighost * del;
 
           // create a new particle and add to hash-table
           for (k = 0; k < DIMENSION; k++)
             normc[k] = (crd[k] - mindom[k]) / (maxdom[k] - mindom[k]);
 
           // generate hashtable keys
-          HSFC2d (normc, &keylen, key);
+          HSFC3d (normc, &keylen, key);
           for (k = 0; k < KEYLENGTH; k++)
             keystr.key[k] = key[k];
 
           // create new ghost partilce
           Particle *pt = new Particle (key, crd, ma, hl, 1);
-
+          // add new particle to hash-table
           P_table->add (key, pt);
 
-          // now find out which bucket it belongs to
+          // now find out, which bucket it belongs to
           if (this->contains (crd))
             particles.push_back (keystr);
           else
@@ -349,24 +347,82 @@ Bucket::put_ghost_particles (HashTable * P_table,
   return 0;
 }
 
-/*! Solves Ax = b for 3x3 matrix */
-void
-surffit (double *f,             //! Matrix of {x(i), y(i), 1}
-         double *z,             //! Vector of elevations
-         double *poly)          //! polynomial constants
-{
-  double t1 = (f[4] * f[8]) - (f[5] * f[7]);
-  double t2 = (-f[1] * f[8]) + (f[2] * f[7]);
-  double t3 = (f[1] * f[5]) - (f[2] * f[4]);
-  double t4 = (t2 * f[3]) + (t3 * f[6]) + (f[0] * t1);
 
-  t4 = 0.1e1 / t4;
-  poly[0] = (t1 * z[0] + t2 * z[1] + t3 * z[2]) * t4;
-  poly[1] = (-(-f[6] * f[5] + f[3] * f[8]) * z[0] +
-             (-f[6] * f[2] + f[0] * f[8]) * z[1] -
-             (-f[3] * f[2] + f[0] * f[5]) * z[2]) * t4;
-  poly[2] = ((-f[6] * f[4] + f[3] * f[7]) * z[0] -
-             (-f[6] * f[1] + f[0] * f[7]) * z[1] +
-             (-f[3] * f[1] + f[0] * f[4]) * z[2]) * t4;
-  return;
+/*! iterates for point \f$\mathbf{x}_b\f$ on boundary from point 
+ *  \f$\mathbf{x}\f$, outside the boundary, such that 
+ *  \f$ \mathbf{x}_b - \mathbf{x} \f$ is normal to the boundary,
+ *  given it is in the form : \f$ a x + b y + c x y + d - z = 0 \f$
+ *  Newton's method, upto 5 cycles is used.
+ */
+int 
+Bucket::calc_intersection (double * pt, double * xnew) const
+{
+  register int i, j;
+  register double xold[DIMENSION];
+  register double pl[4];
+  double tmp[DIMENSION];
+  double tol = 1.0E-5;
+  double err = 0.;
+
+  // hopefully it will staty in registers
+  for (i = 0; i < 4; i++)
+    pl[i] = poly[i];
+
+  // inital guess
+  xnew[0] = pt[0];
+  xnew[1] = pt[1];
+  xnew[2] = this->get_bndZ (xnew);
+
+  // Newton's method
+  for (i=0; i<5; i++)
+  {
+    // copy x(n+1) to x(n)
+    for (j = 0; j < DIMENSION; j++)
+      xold[j] = xnew[j];
+
+    // function at xold
+    double fn[3] = { (pl[0] * xold[0]) + (pl[1] * xold[1]) +
+                     (pl[2] * xold[0] * xold[1]) + pl[3] - xold[2]     ,
+                     (xold[0] - pt[0]) + 
+                     ((pl[0] + (pl[2] * xold[0])) * (xold[2] - pt[2])) ,
+                     (xold[1] - pt[1]) +
+                     ((pl[1] + (pl[2] * xold[1])) * (xold[2] - pt[2]))
+                   };
+ 
+    // jacobian at xold
+    double a1 = pl[0] + pl[2] * xold[1];
+    double a2 = pl[1] + pl[2] * xold[0];
+    double a3 = pl[2] * (xold[2] - pt[2]);
+
+    /* jacobian = {{ a1, a2, -1},
+                   { 1,  a3, a1},
+                   { a3, 1,  a2}
+                  }
+     */
+    // --- begin --- maple generated code
+    double t1 = (-a3 *  a2 + a1);
+    double t2 = ( a2 *  a2);
+    double t3 = ( a1 *  a1);
+    double t4 = ( a2 *  a1);
+    double t5 = t3 + t2 + (-2 * t4 - a3) * a3 + 1;
+    t4 = t4 + a3;
+    t5 = 1. / t5;
+    double t6 = -a2 + a1 * a3;
+    tmp[0] = (t1 * fn[0] + (t2 + 1.) * fn[1] - t4 * fn[2]) * t5;
+    tmp[1] = (-t6 * fn[0] - t4 * fn[1] + (t3 + 1.0) * fn[2]) * t5;
+    tmp[2] = ((-1 + a3 * a3) * fn[0] + t1 * fn[1] - t6 * fn[2]) * t5;
+    // --- end ----- maple generated code
+
+    // upate x(n+1)
+    for (j = 0; j < DIMENSION; j++)
+      xnew[j] = xold[j] - tmp[j];
+
+    // check error
+    err = 0;
+    for (j = 0; j < DIMENSION; j++)
+      err += (xnew[j] - xold[j])*(xnew[j] - xold[j]);
+    if (sqrt (err) < tol ) break;
+  }
+  if ( sqrt (err) > tol ) return 1;
+  return 0;
 }

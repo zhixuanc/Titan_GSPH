@@ -48,12 +48,6 @@ move_data (int nump, int myid, HashTable * P_table, HashTable * BG_mesh)
   if (nump < 2)
     return;
 
-  // __DEBUG_LOG_FILE__
-  // char logfile[15];
-  // sprintf(logfile, "debug%03d.log", myid);
-  // FILE *fp = fopen(logfile, "w");
-  // __DEBUG_LOG_FILE__
-
   // send_info array
   int *check_proc = new int[nump];
   int *send_info = new int[2 * nump];
