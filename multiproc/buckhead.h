@@ -24,34 +24,44 @@
 class BucketHead
 {
 protected:
-  Key head;
-  double coord[2];
+  unsigned sfc_key[2];
+  unsigned buck_key[KEYLENGTH];
 
 public:
   //! constructor
-  BucketHead(Key keyi, double * crd)
+  BucketHead(unsigned * skey, unsigned * bkey)
   {
-    head = keyi;
-    for (int i = 0; i < 2; i++)
-      coord[i] = crd[i];
+    int i;
+    for (i = 0; i < 2; i++)
+      sfc_key[i] = skey[i];
+
+    for (i = 0; i < KEYLENGTH; i++)
+      buck_key[i] = bkey[i];
   }
 
   //! get key of first bucket
-  Key get_head () const
+  const unsigned * get_buck_head () const
   {
-    return head;
+    return buck_key;
   }
 
-  //! get cooord
-  const double * get_coord () const
+  //! get key for the current object
+  const unsigned * getKey () const
   {
-    return coord;
+    return sfc_key;
   }
 
   //! comparison operator for sorting
   bool operator < (const BucketHead & rhs) const
   {
-    return compare_keys(head, rhs.get_head());
+    if ( sfc_key[0] < rhs.getKey ()[0] )
+      return true;
+    else if ( sfc_key[0] > rhs.getKey ()[0] )
+      return false;
+    else if ( sfc_key[1] < rhs.getKey ()[1] )
+      return true;
+    else
+      return false;
   }
 };
 

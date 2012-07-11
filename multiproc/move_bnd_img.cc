@@ -43,33 +43,26 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
   int img_tag = 3152;
   int *send_info = new int[nump];
   int *recv_info = new int[nump];
-  bool *recv_flag = new bool[nump];
+  int *recv_info2 = new int[nump];
 
   for (i = 0; i < nump; i++)
   {
     send_info[i] = 0;
     recv_info[i] = 0;
-    recv_flag[i] = false;
+    recv_info2[i] = 0;
   }
 
-  /* a proc should recv from its neighbors only */
-  HTIterator *itr = new HTIterator (BG_mesh);
-  Bucket *buck = NULL;
-
-  while ((buck = (Bucket *) itr->next ()))
-    if (buck->is_active () && 
-        (!buck->is_guest ()) &&
-        (buck->get_bucket_type () == MIXED))
-    {
-      const int * ineigh_proc = buck->get_neigh_proc ();
-
-      for (i = 0; i < NEIGH_SIZE; i++)
-        if ((neigh_proc[i] > -1) && (neigh_proc[i] != myid))
-          recv_flag[neigh_proc[i]] = true;
-    }
-  delete itr;
-
+  /* if the bucket that contains reflected image belongs to 
+   * foreing process, current proc needs to receive data from
+   * that proc
+   */
+  
   vector < BndImage >::iterator i_img;
+  for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
+    if (i_img->buckproc != myid)
+      recv_info2[i_img->buckproc]++;
+
+  /* calulate the amount of data that needs to be sent */
   for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
     if (i_img->partproc != myid)
       send_info[i_img->partproc]++;
@@ -78,28 +71,39 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
   MPI_Request *req = new MPI_Request[2 * nump];
   int tag0 = 5132;
 
+  /* start receiving data from foreign procs */
   for (i = 0; i < nump; i++)
-    if (recv_flag[i])
-    {
+    if (recv_info2[i] > 0)
       MPI_Irecv ((recv_info + i), 1, MPI_INT, i, tag0, MPI_COMM_WORLD,
                  (req + i));
+
+  /* start sending data to foreign procs */
+  for (i = 0; i < nump; i++)
+    if (send_info[i] > 0)
       MPI_Isend ((send_info + i), 1, MPI_INT, i, tag0, MPI_COMM_WORLD,
                  (req + nump + i));
-    }
 
   MPI_Status status;
 
   // wait for sends to finish
   for (i = 0; i < nump; i++)
-    if (recv_flag[i])
+    if (recv_info2[i] > 0)
       k = MPI_Wait ((req + nump + i), &status);
 
   // wait for recvs to finish
   for (i = 0; i < nump; i++)
-    if (recv_flag[i])
+    if (send_info[i] > 0)
       k = MPI_Wait ((req + i), &status);
 
   delete[]req;
+
+  // check data integrity
+  for (i = 0;  i < nump; i++)
+    if ( recv_info[i] != recv_info2[i] )
+    {
+      fprintf(stderr,"data sizes don't match %s : %d\n", __FILE__, __LINE__);
+      exit (1);
+    }
 
   //  allocate recv_buffer
   BndImage **recv_buf = new BndImage *[nump];
@@ -110,7 +114,6 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
 
   // post reveive calls
   MPI_Request *img_recv_req = new MPI_Request[nump];
-
   for (j = 0; j < nump; j++)
     if (recv_info[j] > 0)
       MPI_Irecv (recv_buf[j], recv_info[j], BND_IMAGE_TYPE, j,

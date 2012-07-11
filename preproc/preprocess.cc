@@ -264,6 +264,7 @@ int main(int argc, char *argv[])
   {
     int myid = i/bucks_per_proc;
     if ( myid >= np )  myid = np-1;
+    partition_table[i].proc = myid;
     j = partition_table[i].xind;
     k = partition_table[i].yind;
     for (l=0; l<nz; l++)
@@ -301,20 +302,44 @@ int main(int argc, char *argv[])
             }
       }
 
+  vector <ColumnHead> :: iterator c_itr = partition_table.begin ();
   for (int iproc=0; iproc<np; iproc++)
   {
     vector<BucketStruct> proc_bucks;
-    for (i=0; i<nx; i++)
-      for (j=0; j<ny; j++)
-        for (k=0; k<nz; k++)
-          if ( bgmesh[i][j][k].myproc == iproc )
+    vector <unsigned> partition_keys;
+    while ( c_itr->proc == iproc )
+    {
+      i = c_itr->xind;
+      j = c_itr->yind;
+      for (k=0; k<nz; k++)
+        if ( bgmesh[i][j][k].myproc == iproc )
             proc_bucks.push_back(bgmesh[i][j][k]);
-    createfunky (iproc, 6, htvars, proc_bucks);
+        else
+        {
+          cerr << "Error: proc-ids don't match" << endl;
+          exit (1);
+        }
+
+      // copy partition table keys
+      for (k = 0; k < KEYLENGTH; k++)
+        partition_keys.push_back (c_itr->key[k]);
+
+      // copy key of the first bucket in the column
+      for (k = 0; k < KEYLENGTH; k++)
+        partition_keys.push_back (bgmesh[i][j][0].key[k]);
+
+      // advance the iterator
+      if ( c_itr == partition_table.end () )
+        break;
+      c_itr++;
+    }
+
+    createfunky (iproc, 6, htvars, proc_bucks, partition_keys);
     proc_bucks.clear();
   }
 
   // Create write initial data to HDF5 file
-  cout << "Total "<< Nbucket <<", "<< bucks_per_proc <<" buckets per proc" << endl;
+  cout << "Total "<< Nbucket <<", "<< bucks_per_proc * nz <<" buckets per proc" << endl;
   cout << "it's ready to run"<<endl;
 
 

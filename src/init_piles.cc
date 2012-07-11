@@ -35,6 +35,7 @@ using namespace std;
 #include <hilbert.h>
 #include <bucket.h>
 #include <particle.h>
+#include <multiproc.h>
 #include <properties.h>
 
 #include "sph_header.h"
@@ -84,11 +85,10 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
   double seed[DIMENSION], pcrd[DIMENSION];
   double bnd1[DIMENSION], bnd2[DIMENSION], poly[DIMENSION + 1];
   Bucket *Curr_buck = NULL;
-  Key tmpkey;
 
   // direction indices on upper bucket
   int Up[DIMENSION] = { 0, 0, 2 };
-  int nump = 0;
+  int num_particle = 0;
 
   // start putting piles
   double mass = matprops->particle_mass;
@@ -102,66 +102,53 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
     mindom[i] = *(P_table->get_minDom() + i);
     maxdom[i] = *(P_table->get_maxDom() + i);
   }
-  if (pileprops->NumPiles < 1)
-  {
-    cerr << "ERROR: unable to run as no pile is defined." << endl;
-    exit(0);
-  }
 
   // Pile information
-  i = 0;
-  double major = pileprops->majorrad[i];
-  double minor = pileprops->minorrad[i];
-  double pheight = pileprops->pileheight[i];
-  Key center = pileprops->CenBucket[i];
+  double major = pileprops->majorrad;
+  double minor = pileprops->minorrad;
+  double pheight = pileprops->pileheight;
+  Key center = pileprops->CenBucket;
 
   double major_sqrd = major * major;
   double minor_sqrd = minor * minor;
 
-  Bucket *Cen_buck = (Bucket *) BG_mesh->lookup(center);
-  assert (Cen_buck);
-  pilecen[0] = pileprops->xCen[0];
-  pilecen[1] = pileprops->yCen[0];
+  Bucket * Cen_buck = (Bucket *) BG_mesh->lookup(center);
+  double tempout[DIMENSION];
+  for ( i = 0; i < DIMENSION; i++)
+    tempout[i] = 0.;
 
-  double zCen;
 #ifdef MULTI_PROC
   if (Cen_buck)
-    zCen = Cen_buck->get_bndZ(pilecen);
-  else
-    zCen = 0;
-
+  {
+    tempout[0] = pileprops->xCen;
+    tempout[1] = pileprops->yCen;
+    tempout[2] = Cen_buck->get_bndZ (tempout);
+  }
   // sync with all procs
-  MPI_Allreduce(&zCen, &pilecen[DIMENSION - 1], 1, MPI_DOUBLE, MPI_MAX,
-                MPI_COMM_WORLD);
+  MPI_Allreduce(tempout, pilecen, DIMENSION, MPI_DOUBLE, 
+                MPI_SUM, MPI_COMM_WORLD);
+  pileprops->xCen = pilecen[0];
+  pileprops->yCen = pilecen[1];
+  pileprops->zCen = pilecen[2];
 #else
   assert(Cen_buck);
-  pilecen[DIMENSION - 1] = Cen_buck->get_bndZ(pilecen);
+  pilecen[0] = pileprops->xCen;
+  pilecen[1] = pileprops->yCen;
+  pilecen[2] = Cen_buck->get_bndZ (pilecen);
+  pileprops->zCen = pilecen[2];
 #endif
-
-  // debug .....
-#ifdef DEBUG
-  int DOWN[3] = { 0, 0, 1};
-  Bucket * buck_down = (Bucket *) BG_mesh->lookup (Cen_buck->which_neigh (DOWN));
- 
-  int LEFTIN[3] = {1, 2, 0};
-  Bucket * buck_lefin = (Bucket *) BG_mesh->lookup (Cen_buck->which_neigh (LEFTIN));
-  
-  int UPRIGHTOUT[3] = {2, 2, 2};
-  Bucket * buck_uprout = (Bucket *) BG_mesh->lookup (Cen_buck->which_neigh (UPRIGHTOUT));
-#endif
-  // ... debug
 
   // add particles 
-  HTIterator * itr = new HTIterator(BG_mesh);
+  HTIterator * itr = new HTIterator (BG_mesh);
   Bucket * Bnd_buck;
 
-  while ((Bnd_buck = (Bucket *) itr->next()))
-    if (Bnd_buck->get_bucket_type() == MIXED)
+  while ((Bnd_buck = (Bucket *) itr->next ()))
+    if (Bnd_buck->get_bucket_type () == MIXED)
     {
       for (i = 0; i < DIMENSION; i++)
       {
-        mincrd[i] = *(Bnd_buck->get_mincrd() + i);
-        maxcrd[i] = *(Bnd_buck->get_maxcrd() + i);
+        mincrd[i] = *(Bnd_buck->get_mincrd () + i);
+        maxcrd[i] = *(Bnd_buck->get_maxcrd () + i);
       }
 
       // negative-negative corner
@@ -179,11 +166,9 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
 
       double dmax = max(max(d1, d2), max(d3, d4));
       double dmin = min(min(d1, d2), min(d3, d4));
-
       
       if ((dmax < major_sqrd) || (dmin < major_sqrd))
       {
-        
         int Nx = (int) round((maxcrd[0] - mincrd[0]) / dx);
         int Ny = (int) round((maxcrd[1] - mincrd[1]) / dx);
 
@@ -220,19 +205,20 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
                   assert(Curr_buck);
                 }
                 HSFC3d (normc, &keylen, key);
+
                 // check for duplicates
                 if (P_table->lookup(key))
                 {
-                  cerr << "ERROR: Trying to add particle "
-                       << "twice on same location." << endl;
+                  fprintf(stderr, "ERROR: Trying to add particle "
+                                  "twice on same location.\n");
                   exit(1);
                 }
                 Particle * pnew = new Particle(key, pcrd, mass, smlen, 0);
                
                 // add to hash-table
                 P_table->add(key, pnew);
-                nump++;
-                tmpkey.copy_key(key);
+                num_particle++;
+                Key tmpkey(key);
                 Curr_buck->add_real_particle(tmpkey);
               }
             }
@@ -241,22 +227,23 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
     }
 
   int ntotal = 0;
+
 #ifdef MULTI_PROC
-  MPI_Allreduce (&nump, &ntotal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce (&num_particle, &ntotal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if ( ntotal < 100 )
   {
     if ( myid == 0 )
     {
-      cerr << "No. of particles = " << nump << endl;
-      cerr << "Not enough particles ..." << endl;
+      fprintf (stderr, "No. of particles = %d\n", ntotal);
+      fprintf (stderr, "Not enough particles.\n");
     }
     MPI_Abort (MPI_COMM_WORLD, 1);
   }
 #else
-  if ( nump < 100 )
+  if ( num_particle < 100 )
   {
-    cerr << "No. of particles = " << nump << endl;
-    cerr << "Not enough particles ..." << endl;
+    fprintf (stderr, "No. of particles = %d\n", ntotal);
+    fprintf (stderr, "Not enough particles.\n");
     exit (1);
   }
 #endif
@@ -268,10 +255,12 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
     Curr_buck->mark_inactive ();
     Key *nkey = Curr_buck->get_neighbors ();
     for (i = 0; i < NEIGH_SIZE; i++)
-      if (*(Curr_buck->get_neigh_proc () + i) > -1)
+      // the guest buckets are not moved yet, 
+      // hence only check buckets which belong to current proc
+      if (*(Curr_buck->get_neigh_proc () + i) == myid )
       {
         Bucket *neigh = (Bucket *) BG_mesh->lookup (nkey[i]);
-        if (neigh->have_real_particles ())
+        if (neigh->have_real_particles ()) 
         {
           Curr_buck->mark_active ();
           break; 

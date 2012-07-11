@@ -226,72 +226,43 @@ struct MatProps
 
 struct PileProps
 {
-  //! Number of piles
-  int NumPiles;
-
   //! Maximum pile height
-  double *pileheight;
+  double pileheight;
 
   //!array holding x coordinate of pile center
-  double *xCen;
+  double xCen;
 
   //!array holding y coordinate of pile center
-  double *yCen;
+  double yCen;
 
   //!array holding y coordinate of pile center
-  double *zCen;
+  double zCen;
 
   //! Array of HT Keys of Buckets containing center
-  Key *CenBucket;
+  Key CenBucket;
 
   //!array holding the major (x before rotation) radius
-  double *majorrad;
+  double majorrad;
 
   //!array holding the minor (y before rotation) radius
-  double *minorrad;
+  double minorrad;
 
   //!array holding the cosine of the rotation angle
-  double *cosrot;
+  double cosrot;
 
   //!array holding the sine of the rotation angle;
-  double *sinrot;
+  double sinrot;
 
-  //! this constuctor initializes the number of piles to zero.
-    PileProps ()
+  PileProps ()
   {
-    NumPiles = 0;
-  }
-
-  //! function allocates space for the pile data
-  void allocpiles (int nump)
-  {
-    NumPiles = nump;
-    pileheight = new double[nump];
-    xCen = new double[nump];
-    yCen = new double[nump];
-    zCen = new double[nump];
-
-    CenBucket = new Key[nump];
-    majorrad = new double[nump];
-    minorrad = new double[nump];
-    cosrot = new double[nump];
-    sinrot = new double[nump];
-  }
-
-  //! this function deallocates the dynamically out array members of the PileProps structure
-  ~PileProps ()
-  {
-    if (NumPiles > 0)
-    {
-      delete[]pileheight;
-      delete[]xCen;
-      delete[]yCen;
-      delete[]zCen;
-      delete[]majorrad;
-      delete[]minorrad;
-      delete[]cosrot;
-      delete[]sinrot;
-    }
+    pileheight = 0.;
+    xCen = 0.;
+    yCen = 0.;
+    zCen = 0.;
+    majorrad = 0.;
+    minorrad = 0.;
+    cosrot = 0.;
+    sinrot = 0.;
   }
 };
 

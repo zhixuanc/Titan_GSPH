@@ -37,23 +37,15 @@ BSFC_update_and_send_elements (int myid, int numprocs,
                                HashTable * P_table, HashTable * BG_mesh)
 {
   int i, j, k;
-  Key mykey, neighkey;
   int dir1[DIMENSION], dir2[DIMENSION];
+  Key mykey, neighkey;
 
   int *send_info = new int[numprocs * 3];
-
   for (i = 0; i < 3 * numprocs; i++)
     send_info[i] = 0;
 
-  // DEBUG FILE OPEN
-  //char filename[15];
-  //unsigned  FOO = 1879496961;
-  //sprintf(filename, "debug%03d.log", myid);
-  ////FILE *fp = fopen(filename, "w");
-  // __DEBUG__
-
   // now figure out what processors need to have neighbor info updated 
-  // and what processors to send elements to
+  // and what processors to send objects to
   Bucket *buck;
   HTIterator *itr = new HTIterator (BG_mesh);
 
@@ -73,19 +65,23 @@ BSFC_update_and_send_elements (int myid, int numprocs,
         (int) buck->get_plist ().size ();
     }
 
+  // copy send_info to temp_info
   int *temp_info = new int[3 * numprocs];
-
   for (i = 0; i < 3 * numprocs; i++)
     temp_info[i] = send_info[i];
 
+  // send send_info to everyone, so everyone know how much 
+  // they are receiving from whom
   int *recv_info = new int[3 * numprocs];
+  MPI_Alltoall (temp_info, 3, MPI_INT, recv_info, 3, MPI_INT, MPI_COMM_WORLD);
+  delete []temp_info;
 
-  i =
-    MPI_Alltoall (temp_info, 3, MPI_INT, recv_info, 3, MPI_INT, MPI_COMM_WORLD);
-  delete[]temp_info;
-
+  /***********************************/
   /*  first post all of the receives */
+  /***********************************/
   MPI_Request *recv_request = new MPI_Request[3 * numprocs];
+
+  // recv_count is total data current proc will receive
   int recv_count[3] = { 0, 0, 0 };
   for (i = 0; i < numprocs; i++)
   {
@@ -127,21 +123,17 @@ BSFC_update_and_send_elements (int myid, int numprocs,
                    MPI_COMM_WORLD, (recv_request + 3 * i + 2));
       counter_recv[2] += recv_info[3 * i + 2];
     }
-  }
-  /* done posting the receives */
+  } /* done posting the receives */
 
   int send_count = 0;
-
   for (i = 0; i < numprocs; i++)
     send_count += send_info[3 * i];
 
   unsigned *send_neigh_array = new unsigned[send_count * blksize];
-
   for (i = 0; i < send_count * blksize; i++)
     send_neigh_array[i] = 5;
 
   int *counter_send_proc = new int[numprocs];
-
   counter_send_proc[0] = 0;
   for (i = 1; i < numprocs; i++)
     counter_send_proc[i] = counter_send_proc[i - 1] + send_info[3 * (i - 1)];
@@ -152,8 +144,8 @@ BSFC_update_and_send_elements (int myid, int numprocs,
     if (myid != buck->get_myprocess ()) // this element will get moved to a new processor
     {
       mykey = buck->getKey ();
-      const int *neigh_proc = buck->get_neigh_proc ();
-      Key *neighbors = buck->get_neighbors ();
+      const int * neigh_proc = buck->get_neigh_proc ();
+      Key * neighbors = buck->get_neighbors ();
 
       for (j = 0; j < NEIGH_SIZE; j++)
         if ((neigh_proc[j] != myid) && (neigh_proc[j] > -1))
@@ -195,7 +187,7 @@ BSFC_update_and_send_elements (int myid, int numprocs,
         for (j = 0; j <= 2; j++)
           for (k = 0; k <= 2; k++)
           {
-            // skip thy self
+            // skip thyself
             if ((i == 0) && (j == 0) && (k == 0))
               continue;
 
@@ -210,13 +202,12 @@ BSFC_update_and_send_elements (int myid, int numprocs,
             dir2[1] = (j > 0 ? 3 ^ j : j);
             dir2[2] = (k > 0 ? 3 ^ k : k);
 
+            // update neigh-procs 
             int neigh_proc = buck->which_neigh_proc (dir1);
-
-            // if neighbor is staying on local process
-            if (neigh_proc == myid)
+            if ( neigh_proc == myid )
             {
               Bucket *BkNeigh =
-                (Bucket *) BG_mesh->lookup (buck->which_neigh (dir1));
+                  (Bucket *) BG_mesh->lookup (buck->which_neigh (dir1));
               buck->put_neigh_proc (dir1, BkNeigh->get_myprocess ());
               BkNeigh->put_neigh_proc (dir2, buck->get_myprocess ());
             }
@@ -240,14 +231,14 @@ BSFC_update_and_send_elements (int myid, int numprocs,
           mykey.key[k] = recv_neigh_array[j * blksize + k];
           neighkey.key[k] = recv_neigh_array[j * blksize + KEYLENGTH + k];
         }
-        int neighp = (int) recv_neigh_array[j * blksize + 2 * KEYLENGTH];
+        int neigh_proc = (int) recv_neigh_array[j * blksize + 2 * KEYLENGTH];
 
         buck = (Bucket *) BG_mesh->lookup (mykey);
         assert (buck);
 
         if (buck->find_neigh_dir (neighkey, dir1))
         {
-          buck->put_neigh_proc (dir1, neighp);
+          buck->put_neigh_proc (dir1, neigh_proc);
         }
         else
         {
@@ -258,14 +249,14 @@ BSFC_update_and_send_elements (int myid, int numprocs,
       }
       counter += recv_info[3 * i];
     }
-  delete[]recv_neigh_array;
+  delete []recv_neigh_array;
 
   // wait and then delete sent info that was already received
   for (i = 0; i < numprocs; i++)
     if (send_info[3 * i] != 0)
       j = MPI_Wait ((send_request + i), &status);
 
-  delete[]send_neigh_array;
+  delete []send_neigh_array;
 
 /****************************************************
  *     migrate particles within the buckets
@@ -332,14 +323,14 @@ BSFC_update_and_send_elements (int myid, int numprocs,
       }
     }
 
-  delete[]recv_part_array;
+  delete []recv_part_array;
 
   // wait and delete send info
   for (i = 0; i < numprocs; i++)
     if (send_info[3 * i + 2] != 0)
       j = MPI_Wait ((send_request + i), &status);
 
-  delete[]send_part_array;
+  delete []send_part_array;
 
   ////////////////////////////////////////////////////////////
   // can now migrate any of the buckets which need to be moved
@@ -379,7 +370,7 @@ BSFC_update_and_send_elements (int myid, int numprocs,
       BG_mesh->remove (buck->getKey ());
       delete buck;
     }
-  delete[]counter_send_proc;
+  delete []counter_send_proc;
 
   // now send out packed elements
   counter = 0;
@@ -409,9 +400,9 @@ BSFC_update_and_send_elements (int myid, int numprocs,
       }
     }
 
-  delete[]recv_buck_array;
-  delete[]recv_request;
-  delete[]recv_info;
+  delete []recv_buck_array;
+  delete []recv_request;
+  delete []recv_info;
 
   // wait for send info before deleting
   for (i = 0; i < numprocs; i++)
@@ -421,9 +412,9 @@ BSFC_update_and_send_elements (int myid, int numprocs,
   // DEBUG FILE CLSOE
   // fclose(fp);
 
-  delete[]send_buck_array;
-  delete[]send_request;
-  delete[]send_info;
+  delete []send_buck_array;
+  delete []send_request;
+  delete []send_info;
   delete itr;
 
   return;

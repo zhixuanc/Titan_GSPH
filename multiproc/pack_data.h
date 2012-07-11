@@ -26,7 +26,7 @@
 
 #  include <constants.h>
 
-struct PARTICLE_PACK
+struct ParticlePack
 {
   // Integers
   int ghost;
@@ -38,9 +38,8 @@ struct PARTICLE_PACK
   double coords[DIMENSION];
   double state_vars[NO_OF_EQNS];
 };
-typedef struct PARTICLE_PACK ParticlePack;
 
-struct BUCKET_PACK
+struct BucketPack
 {
   // Integers
   int myprocess;
@@ -63,6 +62,5 @@ struct BUCKET_PACK
   double bndy[PARTICLE_DENSITY];
   double fric[PARTICLE_DENSQRD * DIMENSION];
 };
-typedef struct BUCKET_PACK BucketPack;
 
 #endif // PACK_DATA__H

@@ -7,6 +7,8 @@
 noinst_LIBRARIES = libmultiproc.a
 
 libmultiproc_a_SOURCES = \
+   BSFC_create_bins.cc \
+   BSFC_refine_partition.cc \
    BSFC_update_and_send_elements.cc \
    exvar.h \
    move_bnd_img.cc \

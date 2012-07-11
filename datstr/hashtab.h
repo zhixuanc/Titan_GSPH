@@ -36,22 +36,68 @@ using namespace std;
 
 #include <constants.h>
 
-typedef struct
+struct Key
 {
   unsigned key[KEYLENGTH];
-  void copy_key (unsigned k[])
+
+  // default constructor
+  Key ()
+  {
+    key[0] = key[1] = 0;
+  }
+
+  // constructor
+  Key (unsigned keyin[])
+  {
+    for (int i = 0; i < KEYLENGTH;  i++)
+      key[i] = keyin[i];
+  }
+ 
+  // copy constructor
+  Key (const Key & rhs) 
   {
     int i;
     for (i = 0; i < KEYLENGTH; i++)
-        key[i] = k[i];
-  };
+        key[i] = rhs.key[i];
+  }
 
+  // Key to unsigned-array
   void fill_key (unsigned k[])
   {
     for (int i = 0; i < KEYLENGTH; i++)
       k[i] = key[i];
-  };
-} Key;
+  }
+
+  // overload assignment
+  Key & operator= (const Key & rhs)
+  {
+    for (int i = 0; i < KEYLENGTH; i++)
+      key[i] = rhs.key[i];
+    return * this;
+  }
+
+  // overload equality
+  bool operator== (const Key & rhs) const
+  {
+    for (int i = 0; i < KEYLENGTH; i++)
+      if ( key[i] != rhs.key[i] )
+        return false;
+    return true;
+  }
+
+  // overload less than
+  bool operator< (const Key & rhs) const
+  {
+    if (key[0] < rhs.key[0])
+      return true;
+    else if (key[0] > rhs.key[0])
+      return false;
+    else if (key[1] < rhs.key[1])
+      return true;
+    else
+      return false;   
+  }
+};
 
 inline bool
 compare_keys (const Key & K1, const Key & K2)
@@ -63,8 +109,6 @@ compare_keys (const Key & K1, const Key & K2)
     return false;
   else if (K1.key[1] < K2.key[1])
     return true;
-  else if (K1.key[1] > K2.key[1])
-    return false;
   else
     return false;
 }

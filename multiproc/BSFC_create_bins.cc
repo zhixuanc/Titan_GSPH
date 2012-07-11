@@ -34,18 +34,16 @@
  */
 
 void
-BSFC_create_bins (int num_local_objects,
-                  BSFC_VERTEX_PTR sfc_vert_ptr,
-                  int *amount_of_bits_used,
-                  float *global_actual_work_allocated,
+BSFC_create_bins (int num_local_objects, sfc_vertex_t * sfc_vert_ptr,
+                  int * amount_of_bits_used, int size_of_unsigned,
+                  float * global_actual_work_allocated,
                   float *work_percent_array, float *total_weight_ptr,
                   int *balanced_flag,
                   unstructured_communication * verts_in_cut_info,
-                  int *number_of_cuts, int bins_per_proc, int myid,
+                  int * number_of_cuts, int bins_per_proc, int myid,
                   int numprocs)
 {
   int i, j, number_of_bins, ierr = 0;
-  int size_of_unsigned = sizeof (unsigned);
 
   float *binned_weight_array;
   float my_work_percent;
@@ -219,9 +217,10 @@ BSFC_create_bins (int num_local_objects,
   verts_in_cut_info->send_count = send_count;
   verts_in_cut_info->recv_count = recv_count;
 
-  sfc_vertex *send_sfc_vert = new sfc_vertex[send_count];       //temp storage for objects that get sent out...
+  //temp storage for objects that get sent out...
+  sfc_vertex_t * send_sfc_vert = new sfc_vertex_t [send_count];
 
-  verts_in_cut_info->recv_sfc_vert = new sfc_vertex[recv_count];
+  verts_in_cut_info->recv_sfc_vert = new sfc_vertex_t [recv_count];
 
   // fill up the send array...
   int *proc_counter = new int[numprocs];
@@ -310,10 +309,10 @@ BSFC_create_bins (int num_local_objects,
 /* create info before starting the multi-level refinement of the bins 
  */
 void
-BSFC_create_refinement_info (int *number_of_cuts, float *gl_work,
-                             float total_weight, float *work_percent,
+BSFC_create_refinement_info (int * number_of_cuts, float * gl_work,
+                             float total_weight, float * work_percent,
                              unstructured_communication verts_in_cut_info,
-                             float **work_prev_allocated, int myid,
+                             float ** work_prev_allocated, int myid,
                              int numprocs)
 {
   float my_work, work2;
@@ -351,11 +350,11 @@ BSFC_create_refinement_info (int *number_of_cuts, float *gl_work,
 
   // note that work_prev_allocated data will only be correct for the
   // actual processors that are getting examined
-  *work_prev_allocated = new float[numprocs];
+  *work_prev_allocated = new float [numprocs];
   int ncuts = *(number_of_cuts);
 
   for (i = myid - ncuts; i <= myid; i++)
-    *work_prev_allocated[i] = work2;
+    (*work_prev_allocated)[i] = work2;
 
   return;
 }
@@ -370,7 +369,7 @@ BSFC_create_refinement_info (int *number_of_cuts, float *gl_work,
 
 int
 BSFC_get_array_location (int number_of_bins, int number_of_bits,
-                         int prev_used_bits, BSFC_VERTEX_PTR sfc_vert_ptr)
+                         int prev_used_bits, sfc_vertex_t * sfc_vert_ptr)
 {
   unsigned ilocation = 0;
   unsigned ilocation2 = 0;

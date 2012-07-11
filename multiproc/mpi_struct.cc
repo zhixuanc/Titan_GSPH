@@ -30,10 +30,12 @@
 #include <bnd_image.h>
 
 #include "pack_data.h"
+#include "repartition_BSFC.h"
 
 MPI_Datatype BUCKET_TYPE;
 MPI_Datatype PARTICLE_TYPE;
 MPI_Datatype BND_IMAGE_TYPE;
+MPI_Datatype LB_VERT_TYPE;
 
 void
 GMFG_new_MPI_Datatype ()
@@ -108,5 +110,21 @@ GMFG_new_MPI_Datatype ()
   MPI_Type_struct (3, blockcounts3, displs3, type3, &BND_IMAGE_TYPE);
   MPI_Type_commit (&BND_IMAGE_TYPE);
 
-  //New data types are created at this point
-}
+  // create 4th datatype for SFC verticies
+  int blockcounts6[3] = {3,KEYLENGTH+1,1};
+  MPI_Datatype types6[3] = {MPI_INT, MPI_UNSIGNED, MPI_FLOAT};
+  MPI_Aint displs6[3];
+
+  sfc_vertex_t * sfc_vert_ptr = new sfc_vertex_t;
+
+  MPI_Address(&(sfc_vert_ptr->destination_proc), &displs6[0]);
+  MPI_Address(&(sfc_vert_ptr->sfc_key[0]), &displs6[1]);
+  MPI_Address(&(sfc_vert_ptr->lb_weight), &displs6[2]);
+
+  for(d=2; d>=0; d--)
+    displs6[d]-=displs6[0]; 
+
+  MPI_Type_struct(3, blockcounts6, displs6, types6, &LB_VERT_TYPE);
+  MPI_Type_commit(&LB_VERT_TYPE);
+  
+}//New data types are created at this point

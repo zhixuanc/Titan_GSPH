@@ -17,7 +17,7 @@ using namespace std;
 #  include <particle.h>
 
 /* BSFC vertex  */
-struct sfc_vertex
+struct sfc_vertex_t
 {
   int destination_proc;
   /*!
@@ -36,20 +36,19 @@ struct sfc_vertex
    * space-filling curve key 
    */
   unsigned sfc_key[KEYLENGTH];
+  unsigned obj_key[KEYLENGTH];
   unsigned my_bin;
   float lb_weight;
 };
-typedef struct sfc_vertex BSFC_VERTEX;
-typedef struct sfc_vertex *BSFC_VERTEX_PTR;
 
 struct unstructured_communication
 {
-  int *send_procs_ptr;
-  int *recv_procs_ptr;
   int send_count;
   int recv_count;
-  sfc_vertex *recv_sfc_vert;
   int used_flag;
+  int * send_procs_ptr;
+  int * recv_procs_ptr;
+  sfc_vertex_t * recv_sfc_vert;
 };
 
 // get power of two
@@ -60,7 +59,7 @@ BSFC_pow2(int intexp)
 }
 
 /* declare functions in the sfc routines */
-void BSFC_update_element_proc(int, int, HashTable *, BSFC_VERTEX_PTR);
+void BSFC_update_element_proc(int, int, HashTable *, sfc_vertex_t *);
 
 void BSFC_update_and_send_elements(int, int, HashTable *, HashTable *);
 
@@ -76,7 +75,7 @@ int BSFC_get_array_location(
                              //! Number of previously used bits 
                              int,
                              //! Array of Vertices
-                             BSFC_VERTEX_PTR);
+                             sfc_vertex_t *);
 
 void BSFC_refine_partition(
                             //! Array of local imbalanced flags
@@ -86,7 +85,7 @@ void BSFC_refine_partition(
                             //! Number of vetices in cut 
                             int,
                             //! Array of Vertices
-                            BSFC_VERTEX_PTR,
+                            sfc_vertex_t *,
                             //! Array of work percentage
                             float *,
                             //! total weight 
@@ -131,9 +130,11 @@ void BSFC_create_bins(
                        //! Number of local buckets
                        int,
                        //! BSFC_Vertex pointer
-                       BSFC_VERTEX_PTR,
+                       sfc_vertex_t *,
                        //! Amount of bits used 
                        int *,
+                       //! size of unsigned
+                       int ,
                        //! Global actucal work allocated
                        float *,
                        //! Work percent array

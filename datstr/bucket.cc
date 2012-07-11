@@ -34,10 +34,10 @@ using namespace std;
 #include <sph_header.h>
 #include "bucket.h"
 
-int ineigh[3][3][3] = { {{13, 12, 14}, {10, 9, 11}, {16, 15, 17}},
-{{4, 3, 5}, {1, 0, 2}, {7, 6, 8}},
-{{22, 21, 23}, {19, 18, 17}, {25, 24, 26}}
-};
+int ineigh[3][3][3] = {{{13, 12, 14}, {10,  9, 11}, {16, 15, 17}},
+                       {{4,   3,  5}, {1,   0,  2}, {7,   6,  8}},
+                       {{22, 21, 23}, {19, 18, 20}, {25, 24, 26}}
+                      };
 
 // constructors
 Bucket::Bucket (unsigned *keyi, double *minx, double *maxx, int buck_type,
@@ -88,13 +88,12 @@ Bucket::Bucket (unsigned *keyi, double *minx, double *maxx, int buck_type,
   particles.clear ();
   new_plist.clear ();
 
-//(i,j+1)_________ (i+1,j+1)
-//    |          /|
-//    |        /  |
-//    |      /    |
-//    |    /      |
-//    |  /        |
-//    |/          |
+//(i,j+1)_________(i+1,j+1)
+//    |           |
+//    |           |
+//    |           |
+//    |           |
+//    |           |
 //(i,j)-----------(i+1,j)
 //   
   for (i = 0; i < 4; i++)
@@ -203,7 +202,7 @@ Bucket::put_neigh_proc (int dir[], int proc)
 }
 
 bool
-Bucket::find_neigh_dir (Key neigh, int dir[]) const
+Bucket::find_neigh_dir (Key keyin, int dir[]) const
 {
   int i, j, k;
 
@@ -211,9 +210,7 @@ Bucket::find_neigh_dir (Key neigh, int dir[]) const
     for (j = 0; j < 3; j++)
       for (k = 0; k < 3; k++)
       {
-        Key comp_key = neighbors[ineigh[i][j][k]];
-
-        if (compare_keys (neigh, comp_key))
+        if (neighbors[ineigh[i][j][k]] == keyin)
         {
           dir[0] = i;
           dir[1] = j;

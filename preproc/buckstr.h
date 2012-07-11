@@ -26,7 +26,7 @@
 
 #include <constants.h>
 
-typedef struct 
+struct BucketStruct
 {
   unsigned key[KEYLENGTH];
   unsigned neighs[NEIGH_SIZE*KEYLENGTH];
@@ -38,6 +38,6 @@ typedef struct
   double   zcoord[2];
   double   elev[4];
 
-} BucketStruct;
+};
 
 #endif // BUCKETSTR__H

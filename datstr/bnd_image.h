@@ -2,7 +2,7 @@
 #  define BND_IMAGE__H
 
 #  include <constants.h>
-struct BND_IMAGE
+struct BndImage
 {
   //!  process id of bucket containing image
   int buckproc;
@@ -18,7 +18,7 @@ struct BND_IMAGE
   double state_vars[NO_OF_EQNS];
 
   // constructor 1
-    BND_IMAGE ()
+  BndImage ()
   {
     buckproc = -1;
     partproc = -1;
@@ -28,7 +28,7 @@ struct BND_IMAGE
   }
 
   // constructor 2
-  BND_IMAGE (int p1, int p2, unsigned *bkey, unsigned *pkey, double *crd)
+  BndImage (int p1, int p2, unsigned *bkey, unsigned *pkey, double *crd)
   {
     int i;
 
@@ -50,7 +50,5 @@ struct BND_IMAGE
       state_vars[i] = 0;
   }
 };
-
-typedef BND_IMAGE BndImage;
 
 #endif // BND_IMAGE__H

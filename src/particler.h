@@ -83,7 +83,7 @@ int Read_Data (
 int Read_Grid (
                HashTable **,   //! Pointer to Hashtable for background mesh
                HashTable **,   //! Pointer to HashTable for partilces
-               vector<BucketHead> *,  //! Vector of sorted partition table keys
+               vector<BucketHead> &,  //! Vector of sorted partition table keys
                MatProps  *,    //! Structure containing material properties
                PileProps *,    //! Structure containing initial piles data
                FluxProps *

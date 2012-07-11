@@ -24,14 +24,14 @@
 #include "repartition_BSFC.h"
 
 void
-BSFC_refine_partition (int *local_balanced_flag,
-                       int *amount_of_used_bits, int num_vert_in_cut,
-                       BSFC_VERTEX_PTR vert_in_cut_ptr,
-                       float *work_percent_array, float total_weight,
-                       float *global_actual_work_allocated,
+BSFC_refine_partition (int * local_balanced_flag,
+                       int * amount_of_used_bits, int num_vert_in_cut,
+                       sfc_vertex_t * vert_in_cut_ptr,
+                       float * work_percent_array, float total_weight,
+                       float * global_actual_work_allocated,
                        int number_of_cuts,
-                       int *ll_bins_head, float *work_prev_allocated,
-                       int subbins_per_bin, int *local_balanced_flag_array,
+                       int * ll_bins_head, float * work_prev_allocated,
+                       int subbins_per_bin, int * local_balanced_flag_array,
                        int myid, int numprocs)
 {
   //printf("proc %d is refining the partition level\n",myid);
@@ -72,9 +72,8 @@ BSFC_refine_partition (int *local_balanced_flag,
     amount_of_bits = 8 * sizeof (unsigned) * KEYLENGTH - *amount_of_used_bits;
   number_of_bins = BSFC_pow2 (i);
 
-  ll_prev_bins = (int *) malloc (sizeof (int) * (number_of_cuts + 1));
-
-  ll_bins_head_copy = (int *) malloc (sizeof (int) * (number_of_cuts + 1));
+  ll_prev_bins = new int [number_of_cuts + 1];
+  ll_bins_head_copy = new int [number_of_cuts + 1];
 
   for (i = 0; i <= number_of_cuts; i++)
     ll_bins_head_copy[i] = -1;
@@ -110,7 +109,7 @@ BSFC_refine_partition (int *local_balanced_flag,
         ll_location = vert_in_cut_ptr[ll_location].next_sfc_vert_index;
       }
 
-      bin_proc_array = (int *) malloc (sizeof (int) * number_of_bins);
+      bin_proc_array =  new int [number_of_bins];
       i = number_of_bins - 1;
 
       current_proc = vert_in_cut_ptr[ll_bins_head[ll_counter]].destination_proc;
@@ -192,15 +191,15 @@ BSFC_refine_partition (int *local_balanced_flag,
           }
         }
       }
-      free (binned_weight_array);
-      free (bin_proc_array);
+      delete [] binned_weight_array;
+      delete [] bin_proc_array;
     }
 
   for (i = 0; i <= number_of_cuts; i++)
     ll_bins_head[i] = ll_bins_head_copy[i];
 
-  free (ll_prev_bins);
-  free (ll_bins_head_copy);
+  delete ll_prev_bins;
+  delete ll_bins_head_copy;
 
   *amount_of_used_bits += amount_of_bits;
 
@@ -234,8 +233,10 @@ BSFC_refine_partition (int *local_balanced_flag,
         {
           ll_bins_head[i] = -1;
           local_balanced_flag_array[i] = BSFC_BALANCED;
+#ifdef DEBUG
           printf ("Bin refinement cannot improve load balance on proc %d\n",
                   myid);
+#endif
         }
       }
     /* check again if any of the partitions are not balanced */

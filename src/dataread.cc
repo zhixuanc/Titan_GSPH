@@ -78,32 +78,25 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
   int numpiles;
 
   // Pile properties
-  inD2 >> numpiles;
-  pileprops->allocpiles(numpiles);
-
   // read data for all the piles
   double temp;
   double len_scale = matprops->LENGTH_SCALE;
-  for (i = 0; i < numpiles; i++)
-  {
-    inD2 >> temp;
-    pileprops->pileheight[i] = temp / len_scale;
-    inD2 >> temp;
-    pileprops->xCen[i] = temp / len_scale;
-    inD2 >> temp;
-    pileprops->yCen[i] = temp / len_scale;
-    inD2 >> temp;
-    pileprops->majorrad[i] = temp / len_scale;
-    inD2 >> temp;
-    pileprops->minorrad[i] = temp / len_scale;
-    inD2 >> rotang;
-    rotang = deg2rad (rotang);
-    pileprops->cosrot[i] = cos(rotang);
-    pileprops->sinrot[i] = sin(rotang);
-  }
+  inD2 >> temp;
+  pileprops->pileheight = temp / len_scale;
+  inD2 >> temp;
+  pileprops->xCen = temp / len_scale;
+  inD2 >> temp;
+  pileprops->yCen = temp / len_scale;
+  inD2 >> temp;
+  pileprops->majorrad = temp / len_scale;
+  inD2 >> temp;
+  pileprops->minorrad = temp / len_scale;
+  inD2 >> rotang;
+  rotang = deg2rad (rotang);
+  pileprops->cosrot = cos(rotang);
+  pileprops->sinrot = sin(rotang);
 
   double time_scale = 1;
-
   // simulation time properties
   inD2 >> timeprops->max_time;
   inD2 >> timeprops->max_steps;
@@ -143,7 +136,7 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
 
 int
 Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
-          vector < BucketHead > *partition_tab, MatProps * matprops,
+          vector < BucketHead > & partition_tab, MatProps * matprops,
           PileProps * pileprops, FluxProps * fluxprops)
 {
   int No_of_Buckets;
@@ -208,8 +201,6 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
   // read BG Mesh data
   GH5_read_grid_data(fp, "/Buckets", bucket);
 
-  // clear out the partition table
-  partition_tab->clear();
   for (i = 0; i < No_of_Buckets; i++)
   {
     // hash-table keys
@@ -264,16 +255,17 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       }
     }
     // Check if current bucket has center of any of the piles
-    double xcen = pileprops->xCen[0];
-    double ycen = pileprops->yCen[0];
-
+    double xcen = pileprops->xCen;
+    double ycen = pileprops->yCen;
     if ((bucket[i].buckettype == 2) &&
-        (xcen > min_crd[0]) && (xcen < max_crd[0]) &&
-        (ycen > min_crd[1]) && (ycen < max_crd[1]))
+        (xcen > min_crd[0]) && (xcen <= max_crd[0]) &&
+        (ycen > min_crd[1]) && (ycen <= max_crd[1]))
     {
       for (k = 0; k < KEYLENGTH; k++)
         tempkey.key[k] = key[k];
-      pileprops->CenBucket[0] = tempkey;
+      pileprops->CenBucket = tempkey;
+      pileprops->xCen = 0.5 * (min_crd[0] + max_crd[0]);
+      pileprops->yCen = 0.5 * (min_crd[1] + max_crd[1]);
     }
 
     // buckettype flag
@@ -295,28 +287,44 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       btflag = OVERGROUND;
       break;
     default:
-      cerr << "ERROR: Unknown buckettype flag. Check the preoprocessor" << endl;
+      fprintf(stderr,"ERROR: Unknown buckettype flag.\nCheck the preoprocessor\n");
       exit(1);
     }
 
     // create a new bucket
     Bucket * buck = new Bucket(key, min_crd, max_crd, btflag, elev,
                                myid, neigh_proc, neigh_keys);
-
-    // just to be consistent everywhere
-    if (buck->which_neigh_proc(Down) == -1)
-    {
-      double center[2];
-
-      center[0] = 0.5 * (*(buck->get_mincrd()) + *(buck->get_maxcrd()));
-      center[1] = 0.5 * (*(buck->get_mincrd() + 1) + *(buck->get_maxcrd() + 1));
-      BucketHead bhead(buck->getKey(), center);
-      partition_tab->push_back(bhead);
-    }
     (*BG_mesh)->add(key, buck);
   }
 
+  // free memory
   delete [] bucket;
+
+  // clear out the partition table
+  partition_tab.clear();
+ 
+  // get the size of BG Mesh
+  GH5_getsize (fp, "/partition_table", dims);
+  if ((dims[0] <= 0))
+  {
+    fprintf (stderr,"Error! unable to read partition table.\n");
+    exit (1);
+  }
+
+  double center[2];
+  unsigned * part_keys = new unsigned [dims[0]];
+  int incr = 2 + KEYLENGTH;
+  GH5_readdata (fp, "/partition_table", part_keys);
+  for (i = 0; i < dims[0]; i += incr)
+  {
+    Bucket * buck = (Bucket *) (*BG_mesh)->lookup (part_keys + i + 2);
+    if (buck->which_neigh_proc (Down) != -1)
+    {
+      fprintf (stderr, "ERROR: Partition table do not have correct keys.\n");
+      exit (1);
+    }
+    partition_tab.push_back (BucketHead (part_keys + i, part_keys + i + 2));
+  }
 
   // Create hash-table for particles 
   *P_table = new HashTable(P_TABLE_SIZE, 2017, mindom, maxdom);

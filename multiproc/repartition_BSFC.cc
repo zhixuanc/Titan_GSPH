@@ -32,26 +32,30 @@ using namespace std;
 
 #include <hashtab.h>
 #include <bucket.h>
+#include <hilbert.h>
 
 #include "exvar.h"
 #include "buckhead.h"
 #include "repartition_BSFC.h"
 
-// computes standard deviation 
-double
-calc_std_deviation (double mean, double *load_arr, int size)
-{
-  int i;
-  double variance = 0;
+/* decent values for this partitioning scheme, the user can
+ * set them in the as parameters to tune for better performance 
+ */
+/* minimum amount of coarse bins on each processor */
+#define BINS_PER_PROC 25
 
-  for (i = 0; i < size; i++)
-  {
-    double temp = load_arr[i] - mean;
+/* amount of subbins a bin is divided into */
+#define SUBBINS_PER_BIN 25 
 
-    variance += temp * temp;
-  }
-  return sqrt (variance / (double) size);
-}
+/* amount of refinement of the bins */
+#define MAX_REFINEMENT_LEVEL 10 
+
+/* if you're going to send fewer than this number of 
+ * buckets to the processor before or after you on the space filling curve
+ * don't bother because the communication isn't worth it, this number is 
+ * machine dependent, should probably be much larger than 10
+ */
+#define MIN_NUM_2_SEND 1
 
 int
 repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
@@ -59,250 +63,280 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
 {
   int i, j, k;                  /* local variables */
   int num_local_objects;        /* the number of objects this processor owns */
-  double total_weight = 0;      /* the amount of work for all objects */
-  double dev0, dev1;
+  float total_weight = 0;      /* the amount of work for all objects */
   const double TINY = 0.1e-4;
+  int balanced_flag;
+  int number_of_cuts = 0;
+  int bits_used = 0;
+  int size_of_unsigned = sizeof (unsigned);
+  unsigned sfc_key[2];
+  unsigned buck_key[KEYLENGTH];
+  double xx[2];
+  Bucket * buck_old = NULL;
+
+  // direction vectors for neighbors
   int Up[DIMENSION] = { 0, 0, 2 };
   int Down[DIMENSION] = { 0, 0, 1 };
 
   int myid, numprocs;
-
   MPI_Comm_size (MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank (MPI_COMM_WORLD, &myid);
   if (numprocs < 2)
     return 0;
 
-  //printf("proc %d has entered the repartitioning scheme...\n",myid);
+#ifdef DEBUG2
+  char filename[20];
+  static int istep = 0;
+  sprintf (filename, "debug%02d%04d.txt", myid, istep);
+  FILE * fp = fopen (filename, "w");
+  istep++;
+#endif
+
 
   /* get application data (number of objects, ids, weights, and coords */
-  vector < double >weights;
-
   vector < BucketHead >::iterator ibuck;
+  vector < float > weights;
   for (ibuck = PartitionTable.begin (); ibuck != PartitionTable.end (); ibuck++)
   {
-    Bucket *Curr_buck = (Bucket *) BG_mesh->lookup (ibuck->get_head ());
+    for (i = 0; i < KEYLENGTH; i++)
+      buck_key[i] = ibuck->get_buck_head ()[i];
 
-    assert (Curr_buck);
-    double iwght = 0.;
-
+    Bucket *curr_buck = (Bucket *) BG_mesh->lookup (buck_key);
+    assert (curr_buck);
+    float iwght = 0.;
     do
     {
-      vector < Key > particles = Curr_buck->get_plist ();
+      vector < Key > particles = curr_buck->get_plist ();
       vector < Key >::iterator p_itr;
       for (p_itr = particles.begin (); p_itr != particles.end (); p_itr++)
       {
         Particle *p_curr = (Particle *) P_table->lookup (*p_itr);
 
-        if (!p_curr->is_ghost ())
+        if (p_curr->is_real ())
           iwght += 1.;
       }
-      Curr_buck = (Bucket *) BG_mesh->lookup (Curr_buck->which_neigh (Up));
+      buck_old = curr_buck;
+      curr_buck = (Bucket *) BG_mesh->lookup (curr_buck->which_neigh (Up));
+#ifdef DEBUG
+      if ( ! curr_buck )
+      {
+        Key kold = buck_old->which_neigh (Up);
+        fprintf (stderr, "bucket (%u, %u) not found on %d\n", 
+                 kold.key[0], kold.key[1], myid);
+      }
+#endif
+      assert (curr_buck);
     }
-    while ((Curr_buck->which_neigh_proc (Up)) != -1);
-
+    while ((curr_buck->which_neigh_proc (Up)) != -1);
     weights.push_back (iwght);
     total_weight += iwght;
   }
 
-  double *work_per_proc = new double[numprocs];
-
-  MPI_Allgather (&total_weight, 1, MPI_DOUBLE,
-                 work_per_proc, 1, MPI_DOUBLE, MPI_COMM_WORLD);
+  double * work_per_proc = new double [numprocs];
+  MPI_Allgather (&total_weight, 1, MPI_INT,
+                 work_per_proc, 1, MPI_INT, MPI_COMM_WORLD);
 
   double global_weight = 0;
-
   for (i = 0; i < numprocs; i++)
     global_weight += work_per_proc[i];
 
   // Allocate memeory for SFC_VERTICES array
   num_local_objects = (int) PartitionTable.size ();
-  BSFC_VERTEX_PTR sfc_vertices = new BSFC_VERTEX[num_local_objects];
+  sfc_vertex_t * sfc_vertices = new sfc_vertex_t [num_local_objects];
 
   // fill up the sfc_vertices array which stores 
   // all the necessary info about the load-balancing objects
   for (j = 0; j < num_local_objects; j++)
   {
-    sfc_vertices[j].lb_weight = (float) weights[j];
-    Key buck_key = PartitionTable[j].get_head ();
-
+    sfc_vertices[j].lb_weight =  weights[j];
+    for (k = 0; k < 2; k++)
+      sfc_vertices[j].sfc_key[k] = PartitionTable[j].getKey ()[k];
     for (k = 0; k < KEYLENGTH; k++)
-      sfc_vertices[j].sfc_key[k] = buck_key.key[k];
+      sfc_vertices[j].obj_key[k] = PartitionTable[j].get_buck_head()[k];
   }
 
-  // get total number of objects for all procs
-  int num_global_objects;
+  // allocate space for atucal work allocated
+  float * global_actual_work_allocated = new float [numprocs+1];
+  float * work_percent_array = new float [numprocs];
+  unstructured_communication verts_in_cut_info;
+  verts_in_cut_info.used_flag = 0;
 
-  MPI_Allreduce (&num_local_objects, &num_global_objects, 1,
-                 MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  /* create bins, fill global weight vector and perform intial partition */
+  BSFC_create_bins (num_local_objects, sfc_vertices, & bits_used,
+                    size_of_unsigned, global_actual_work_allocated, 
+                    work_percent_array, & total_weight, & balanced_flag,
+                    & verts_in_cut_info, & number_of_cuts, BINS_PER_PROC, myid,
+                    numprocs);
 
-  // local-size at each proc
-  int *proc_size_arr = new int[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    proc_size_arr[i] = 0;
-  MPI_Allgather (&num_local_objects, 1, MPI_INT,
-                 proc_size_arr, 1, MPI_INT, MPI_COMM_WORLD);
-
-  // create array to store indices of objects in global array
-  int *ind_arr = new int[numprocs + 1];
-
-  ind_arr[0] = 0;
-  for (i = 1; i < numprocs + 1; i++)
+  if ( balanced_flag != BSFC_BALANCED)
   {
-    ind_arr[i] = 0;
-    for (j = 0; j < i; j++)
-      ind_arr[i] += proc_size_arr[j];
-  }
+    
+    float * work_prev_allocated = NULL;
 
-  // create local array for lb_weights and corresponding procs
-  double *loc_wght_arr = new double[num_global_objects];
+    if (verts_in_cut_info.recv_count == 0 || myid == 0)
+      balanced_flag = BSFC_BALANCED;
 
-  for (i = 0; i < num_global_objects; i++)
-    loc_wght_arr[i] = 0.;
+    BSFC_create_refinement_info (& number_of_cuts, global_actual_work_allocated, 
+                                 total_weight, work_percent_array, 
+                                 verts_in_cut_info, & work_prev_allocated, myid,
+                                 numprocs);
 
-  for (i = ind_arr[myid], j = 0; i < ind_arr[myid + 1]; i++, j++)
-    loc_wght_arr[i] = sfc_vertices[j].lb_weight;
+    int * ll_bins_head = new int [number_of_cuts + 1];
 
-  double *gl_wght_arr = new double[num_global_objects];
-  double *gl_work_arr = new double[numprocs];
-  int *gl_proc_arr = new int[num_global_objects];
+    if (number_of_cuts == 0)
+      balanced_flag = BSFC_BALANCED;
 
-  for (i = 0; i < num_global_objects; i++)
-    gl_proc_arr[i] = 0;
+    if (ll_bins_head != NULL)
+      ll_bins_head[number_of_cuts] = 0;
 
-  for (i = 0; i < numprocs; i++)
-    gl_work_arr[i] = 0.;
+    for (i = 0; i < number_of_cuts; i++)
+      ll_bins_head[i] = -1;
 
-  // create global weight array
-  MPI_Allreduce (loc_wght_arr, gl_wght_arr, num_global_objects,
-                 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    int * local_balanced_flag_array = new int [number_of_cuts + 1];
+    for (i = 0; i < number_of_cuts; i++)
+      local_balanced_flag_array[i] = BSFC_BALANCED;
+    local_balanced_flag_array[number_of_cuts] = balanced_flag;
 
-  double avg_work = global_weight / ((double) numprocs);
-  double my_ideal_share = avg_work * 1.025;
-
-  // calculcate initial imbalance
-  dev0 = calc_std_deviation (avg_work, work_per_proc, numprocs);
-
-  double my_work = 0;
-  double residual_work = global_weight;
-  double temp;
-
-  // do successive backword sweeps
-  int iter = numprocs - 1;
-  int start_proc = numprocs - 1;
-  int start_pos = num_global_objects - 1;
-
-  while (iter > 0)
-  {
-    int curr_proc = start_proc;
-
-    i = start_pos;
-    while ((curr_proc >= 0) && (i >= 0))
+    /* refine bins util a satisfactory partition tolerece in obtained */
+    int refinement_level_counter = 0;
+    while (balanced_flag != BSFC_BALANCED &&
+           refinement_level_counter < MAX_REFINEMENT_LEVEL)
     {
-      temp = my_work + gl_wght_arr[i];
-      if ((temp < my_ideal_share) || (my_work < TINY))
-      {
-        my_work = temp;
-        residual_work -= gl_wght_arr[i];
-        gl_proc_arr[i] = curr_proc;
-        gl_work_arr[curr_proc] = my_work;
-        i--;
-      }
-      else
-      {
-        my_work = 0;
-        curr_proc--;
-      }
+      BSFC_refine_partition (& balanced_flag, & bits_used, 
+                             verts_in_cut_info.recv_count,
+                             verts_in_cut_info.recv_sfc_vert,
+                             work_percent_array, total_weight,
+                             global_actual_work_allocated, number_of_cuts,
+                             ll_bins_head, work_prev_allocated, SUBBINS_PER_BIN,
+                             local_balanced_flag_array, myid, numprocs);
+      refinement_level_counter++;
     }
-    if (residual_work > 0)
-    {
-      start_proc--;
-      // find new start position
-      for (i = start_pos; i > 0; i--)
-        if (gl_proc_arr[i] == start_proc)
-          break;
-
-      // re-calculate the ideal_share 
-      start_pos = i;
-      temp = 0;
-      for (i = start_pos; i >= 0; i--)
-        temp += gl_wght_arr[i];
-      residual_work = temp;
-      my_ideal_share = (temp / (double) (start_proc + 1)) * 1.025;
-      my_work = 0;
-      iter--;
-    }
-    else
-      break;
+    delete [] local_balanced_flag_array;
+    delete [] ll_bins_head;
+    if ( work_prev_allocated )
+      delete [] work_prev_allocated;
   }
 
-  // get imbalance 
-  dev1 = calc_std_deviation (avg_work, gl_work_arr, numprocs);
-
-  // if can't do better than current distribution return
-  if (dev0 <= dev1)
+  /* if the load-balancing objects were moved to different processors,
+     we need to move them back now */
+  if (verts_in_cut_info.used_flag != 0)
   {
-    // clean up
-    delete[]proc_size_arr;
-    delete[]ind_arr;
-    delete[]loc_wght_arr;
-    delete[]gl_wght_arr;
-    delete[]gl_proc_arr;
-    delete[]gl_work_arr;
-    delete[]work_per_proc;
-    delete[]sfc_vertices;
-    return 0;
+    int recv_count = 0;
+    sfc_vertex_t * send_sfc_vert = 
+      new sfc_vertex_t [verts_in_cut_info.send_count];
+
+    // fill up the send array
+    int * proc_counter = new int [numprocs];
+    proc_counter[0] = 0;
+    for (i = 1; i < numprocs; i++)
+      proc_counter[i] = proc_counter[i-1] + 
+                        verts_in_cut_info.send_procs_ptr[i-1];
+    int tag = 21054;
+    recv_count = 0;
+    MPI_Request * send_request = new MPI_Request [numprocs];
+    MPI_Request * recv_request = new MPI_Request [numprocs];
+    for (i = 0; i < numprocs; i++)
+    {
+      if ( i != myid )
+      {
+        if (verts_in_cut_info.send_procs_ptr[i] != 0)
+          j = MPI_Irecv ((send_sfc_vert + proc_counter[i]), 
+                         verts_in_cut_info.send_procs_ptr[i], LB_VERT_TYPE, i,
+                         tag, MPI_COMM_WORLD, (send_request + i));
+ 
+        if (verts_in_cut_info.recv_procs_ptr[i] != 0)
+          j = MPI_Isend (& verts_in_cut_info.recv_sfc_vert[recv_count],
+                         verts_in_cut_info.recv_procs_ptr[i], LB_VERT_TYPE,
+                         i, tag, MPI_COMM_WORLD, (recv_request + i));
+      }
+      recv_count += verts_in_cut_info.recv_procs_ptr[i];
+    }
+    // wait until the info is send and received
+    MPI_Status status;
+    for (i = 0;  i < numprocs; i++)
+      if ( i != myid )
+      {
+        if (verts_in_cut_info.send_procs_ptr[i] != 0)
+          j = MPI_Wait ((send_request + i), & status);
+
+        if (verts_in_cut_info.recv_procs_ptr[i] != 0)
+          j = MPI_Wait ((recv_request + i), & status);
+      }
+    recv_count = 0;
+    for (i = 0; i < myid; i++)
+      recv_count += verts_in_cut_info.recv_procs_ptr[i];
+
+    for (i = 0; i < num_local_objects; i++)
+      if ( sfc_vertices[i].cut_bin_flag == BSFC_CUT)
+      {
+        if (sfc_vertices[i].destination_proc != myid)
+        {
+          j = sfc_vertices[i].destination_proc;
+          sfc_vertices[i].destination_proc =
+            send_sfc_vert[proc_counter[j]].destination_proc;
+          proc_counter[j]++;
+        }
+        else
+        {
+          sfc_vertices[i].destination_proc = 
+            verts_in_cut_info.recv_sfc_vert[recv_count].destination_proc;
+          recv_count++;
+        }
+      }
+    delete [] proc_counter;
+    delete [] send_request;
+    delete [] recv_request;
+    delete [] send_sfc_vert;
   }
+  delete [] global_actual_work_allocated;
+  delete [] work_percent_array;
 
-  for (i = ind_arr[myid], j = 0; i < ind_arr[myid + 1]; i++, j++)
-    sfc_vertices[j].destination_proc = gl_proc_arr[i];
-
-  // update current proc info
+  // update proc-info
   for (i = 0; i < num_local_objects; i++)
   {
-    Key bkey = PartitionTable[i].get_head ();
-    Bucket *Curr_buck = (Bucket *) BG_mesh->lookup (bkey);
-
-    assert (Curr_buck);
-    Curr_buck->put_myprocess (sfc_vertices[i].destination_proc);
-    do
+    Bucket * buck = (Bucket *) BG_mesh->lookup (sfc_vertices[i].obj_key);
+    buck->put_myprocess (sfc_vertices[i].destination_proc);
+    do 
     {
-      Curr_buck = (Bucket *) BG_mesh->lookup (Curr_buck->which_neigh (Up));
-      Curr_buck->put_myprocess (sfc_vertices[i].destination_proc);
+      buck = (Bucket *) BG_mesh->lookup (buck->which_neigh (Up));
+      buck->put_myprocess (sfc_vertices[i].destination_proc);
     }
-    while (Curr_buck->which_neigh_proc (Up) != -1);
+    while (buck->which_neigh_proc (Up) != -1);
   }
 
-  // a function name can't be more self-explanatory
+  // a name can't be more self-explanatory
   BSFC_update_and_send_elements (myid, numprocs, P_table, BG_mesh);
 
-  PartitionTable.clear ();
   // update the repartion info
-  Bucket *buck = NULL;
+  PartitionTable.clear ();
+  Bucket * buck = NULL;
   HTIterator *itr = new HTIterator (BG_mesh);
-
+  const double * mindom = BG_mesh->get_minDom();
+  const double * maxdom = BG_mesh->get_maxDom();
+  unsigned keylen = 2;
+  double normc[2];
   while ((buck = (Bucket *) itr->next ()))
     if (buck->which_neigh_proc (Down) == -1)
     {
       Key bkey = buck->getKey ();
-      double xx[DIMENSION-1];
-      for (i = 0; i < DIMENSION-1; i++)
+      for (i = 0; i < 2; i++)
+      {
         xx[i] = (*(buck->get_mincrd () + i) + *(buck->get_maxcrd () + j)) * 0.5;
-      BucketHead bhead (bkey, xx);
-
+        normc[i] = (xx[i] - mindom[i]) / (maxdom[i] - mindom[i]);
+      }
+      HSFC2d (normc , & keylen, sfc_key);
+      BucketHead bhead (sfc_key, bkey.key);
       PartitionTable.push_back (bhead);
     }
 
   // sort bucket-heads
   sort (PartitionTable.begin (), PartitionTable.end ());
 
+#ifdef DEBUG2
+  fclose (fp);
+#endif
+
   // clean up
-  delete[]proc_size_arr;
-  delete[]ind_arr;
-  delete[]loc_wght_arr;
-  delete[]gl_wght_arr;
-  delete[]gl_proc_arr;
-  delete[]gl_work_arr;
   delete[]work_per_proc;
   delete[]sfc_vertices;
   delete itr;

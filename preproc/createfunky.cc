@@ -41,10 +41,11 @@ string create_filename (string base, string ext, const int padding, int myid)
 {
   ostringstream ss;
   ss << base << setw(padding) << setfill('0') << myid << ext; 
-  return ss.str();
+  return ss.str(); 
 }
 
-void createfunky(int myid, int nhtvars, double * htvars, vector <BucketStruct> & bg)
+void createfunky(int myid, int nhtvars, double * htvars, 
+                 vector <BucketStruct> & bg, vector <unsigned> & partition)
 {
 
   int i, j;
@@ -68,8 +69,17 @@ void createfunky(int myid, int nhtvars, double * htvars, vector <BucketStruct> &
     // write Background Grid data
   GH5_write_grid_data(fp,"/Buckets", nbuck, myBucks);
 
+  int numpart = (int) partition.size ();
+  unsigned * part_table = new unsigned [numpart];
+  copy (partition.begin (), partition.end (), part_table);
+  dims1[0] = numpart;
+  dims1[1] = 0;
+  GH5_WriteS (fp, "/partition_table", dims1, (void *) part_table, 0, 0 , UINTTYPE);
+
   delete [] myBucks;
-    // close file
+  delete [] part_table;
+
+  // close file
   GH5_fclose(fp);
 
   return;

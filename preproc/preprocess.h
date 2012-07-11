@@ -29,20 +29,22 @@ using namespace std;
 
 #include <buckstr.h>
 
-struct column_head {
-  int xind, yind;
-  unsigned key2d[2], key[KEYLENGTH];
+struct ColumnHead 
+{
+  int xind, yind, proc;
+  unsigned key[KEYLENGTH];
 
   // constructor
-  column_head (int i, int j, unsigned keyi[])
+  ColumnHead (int i, int j, unsigned keyi[])
   {
     xind = i;
     yind = j;
+    proc = 0;
     for (i = 0; i < KEYLENGTH; i++)
       key[i] = keyi[i];
   }
 
-  bool operator < (const struct column_head & rhs) const
+  bool operator < (const ColumnHead & rhs) const
   {
     if ( key[0] < rhs.key[0] )
       return true;
@@ -54,7 +56,6 @@ struct column_head {
       return false;
   }
 };
-typedef struct column_head ColumnHead;
 
 //! Write Background mesh and particle data to HDF5 file
 void createfunky(
@@ -65,7 +66,9 @@ void createfunky(
                  //! Hash Table Constants
                  double *,
                  //! Background grid data
-                 vector<BucketStruct> &
+                 vector <BucketStruct> &, 
+                 //! partition table keys
+                 vector <unsigned> &
                 );
 
 //! Generate key based on location
