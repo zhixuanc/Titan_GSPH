@@ -199,7 +199,7 @@ main(int argc, char **argv)
 
     /* DYNAMIC LOAD BALANCING */
 
-    if ((numprocs > 1)) // && (timeprops->step % 1000 == 0))
+    if ((numprocs > 1) && (timeprops->step % 1000 == 0))
     {
       // remove guest buckets and particles
       delete_guest_buckets (BG_mesh, P_table);
@@ -222,11 +222,10 @@ main(int argc, char **argv)
     ierr = apply_bcond (myid, P_table, BG_mesh, matprops, Image_table);
 
     // write output if needed
-    write_output(myid, numprocs, P_table, BG_mesh, timeprops, format);
     if (timeprops->ifoutput())
       write_output (myid, numprocs, P_table, BG_mesh, timeprops, format);
-
   }
+
 #ifdef MULTI_PROC
   move_data (numprocs, myid, P_table, BG_mesh);
 #endif

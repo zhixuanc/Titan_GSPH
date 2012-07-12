@@ -55,70 +55,51 @@ move_data (int nump, int myid, HashTable * P_table, HashTable * BG_mesh)
   for (i = 0; i < 2 * nump; i++)
     send_info[i] = 0;
 
+#ifdef DEBUG2
+  char filename[20];
+  sprintf (filename, "debug%03d.txt", myid);
+  FILE * fp = fopen (filename, "a+");
+#endif
+
   /* count how many buckets we should send and receive from other procs */
   HTIterator *itr = new HTIterator (BG_mesh);
   Bucket *buck;
 
   while ((buck = (Bucket *) itr->next ()))
-    if (buck->is_active () && !buck->is_guest ())
+    if ((buck->is_active ()) && 
+        (!buck->is_guest ()))
     {
       const int *neigh_proc = buck->get_neigh_proc ();
-
       vector < Key > plist = buck->get_plist ();
-
       for (i = 0; i < nump; i++)
         check_proc[i] = 0;
+
       // find out number of buckets and particles to send-recv
-      for (i = 0; i < NEIGH_SIZE; i++)
-        if ((neigh_proc[i] > -1) &&
-            (neigh_proc[i] != myid) && (check_proc[neigh_proc[i]] == 0))
-        {
-          check_proc[neigh_proc[i]] = 1;
-          send_info[2 * neigh_proc[i]]++;
-          send_info[2 * neigh_proc[i] + 1] += plist.size ();
-        }
+      if ( plist.size () > 0 )
+      {
+        for (i = 0; i < NEIGH_SIZE; i++)
+          if ((neigh_proc[i] > -1) &&
+              (neigh_proc[i] != myid) && 
+              (check_proc[neigh_proc[i]] == 0))
+          {
+            check_proc[neigh_proc[i]] = 1;
+            send_info[2 * neigh_proc[i]]++;
+            send_info[2 * neigh_proc[i] + 1] += plist.size ();
+          }
+      }
     }
   send_info[2 * myid] = 0;      // don't need to send info to myself
   send_info[2 * myid + 1] = 0;  // ditto for particles
 
   /* 
-   * A proc only receives from the proc it sends to,
-   * but the recv_size may (most likely will) differ from
-   * send_size. Hence we have to make extra MPI calls to get
    * recv_sizes.
    */
   int *recv_info = new int[2 * nump];
-
   for (i = 0; i < 2 * nump; i++)
     recv_info[i] = 0;
   int tag1 = 3210;
-  MPI_Request *req1 = new MPI_Request[2 * nump];
 
-  for (i = 0; i < nump; i++)
-    if (send_info[2 * i] > 0)
-    {
-      // post non-blocking receives
-      MPI_Irecv ((recv_info + 2 * i), 2, MPI_INT, i, tag1, MPI_COMM_WORLD,
-                 (req1 + i));
-      // post all the sends
-      MPI_Isend ((send_info + 2 * i), 2, MPI_INT, i, tag1, MPI_COMM_WORLD,
-                 (req1 + nump + i));
-    }
-
-  MPI_Status status;
-
-  // wait for all the sends to finish
-  for (i = 0; i < nump; i++)
-    if (send_info[2 * i] > 0)
-      ierr = MPI_Wait ((req1 + nump + i), &status);
-
-  // Wait for all the recvs to finish 
-  for (i = 0; i < nump; i++)
-    if (send_info[2 * i] > 0)
-      ierr = MPI_Wait ((req1 + i), &status);
-
-  // clean up allocated memory
-  delete[]req1;
+  MPI_Alltoall (send_info, 2, MPI_INT, recv_info, 2, MPI_INT, MPI_COMM_WORLD);
 
   /* Mark particles in ghost-buckets "old" (if present) */
   itr->reset ();
@@ -145,6 +126,7 @@ move_data (int nump, int myid, HashTable * P_table, HashTable * BG_mesh)
   }
 
   // allocate space for data to be received
+  MPI_Status status;
   MPI_Request *recv_req = new MPI_Request[2 * nump];
   BucketPack *recv_buckets = new BucketPack[recv_count[0]];
   ParticlePack *recv_particles = new ParticlePack[recv_count[1]];
@@ -200,26 +182,26 @@ move_data (int nump, int myid, HashTable * P_table, HashTable * BG_mesh)
     if (buck->is_active () && !buck->is_guest ())
     {
       const int *neigh_proc = buck->get_neigh_proc ();
+      vector < Key > plist = buck->get_plist ();
+      vector < Key >::iterator ip;
 
       // set check proc to zero
       for (i = 0; i < nump; i++)
         check_proc[i] = 0;
 
       // pack data to be sent over to neighs
-      for (i = 0; i < NEIGH_SIZE; i++)
-        if ((neigh_proc[i] > -1) &&
-            (neigh_proc[i] != myid) && (check_proc[neigh_proc[i]] == 0))
-        {
-          check_proc[neigh_proc[i]] = 1;
-          pack_bucket ((send_buckets + counter_send_proc[2 * neigh_proc[i]]),
-                       buck, myid);
-          counter_send_proc[2 * neigh_proc[i]]++;
-
-          // pack particles
-          vector < Key > plist = buck->get_plist ();
-          if (plist.size () > 0)
+      if ( plist.size () > 0 )
+      {
+        for (i = 0; i < NEIGH_SIZE; i++)
+          if ((neigh_proc[i] > -1) &&
+              (neigh_proc[i] != myid) && 
+              (check_proc[neigh_proc[i]] == 0))
           {
-            vector < Key >::iterator ip;
+            check_proc[neigh_proc[i]] = 1;
+            pack_bucket ((send_buckets + counter_send_proc[2 * neigh_proc[i]]),
+                         buck, myid);
+            counter_send_proc[2 * neigh_proc[i]]++;
+
             for (ip = plist.begin (); ip != plist.end (); ip++)
             {
               Particle *psend = (Particle *) P_table->lookup (*ip);
@@ -231,7 +213,7 @@ move_data (int nump, int myid, HashTable * P_table, HashTable * BG_mesh)
               counter_send_proc[2 * neigh_proc[i] + 1]++;
             }
           }
-        }
+      }
     }
 
   //first nump is for buckets, 2nd nump is for particles
@@ -335,9 +317,9 @@ move_data (int nump, int myid, HashTable * P_table, HashTable * BG_mesh)
       }
     }
 
-  // __DEBUG_LOG_FILE__
-  // fclose(fp);
-  // __DEBUG_LOG_FILE__
+#ifdef DEBUG2
+  fclose (fp);
+#endif
 
   // make sure all the sends are completed
   for (i = 0; i < 2 * nump; i++)

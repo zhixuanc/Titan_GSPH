@@ -40,6 +40,12 @@ BSFC_update_and_send_elements (int myid, int numprocs,
   int dir1[DIMENSION], dir2[DIMENSION];
   Key mykey, neighkey;
 
+#ifdef DEBUG2
+  char filename[20];
+  sprintf (filename, "debug%02d.txt", myid);
+  FILE * fp = fopen (filename, "a+");
+#endif
+
   int *send_info = new int[numprocs * 3];
   for (i = 0; i < 3 * numprocs; i++)
     send_info[i] = 0;
@@ -70,7 +76,7 @@ BSFC_update_and_send_elements (int myid, int numprocs,
   for (i = 0; i < 3 * numprocs; i++)
     temp_info[i] = send_info[i];
 
-  // send send_info to everyone, so everyone know how much 
+  // send info to everyone, so everyone know how much 
   // they are receiving from whom
   int *recv_info = new int[3 * numprocs];
   MPI_Alltoall (temp_info, 3, MPI_INT, recv_info, 3, MPI_INT, MPI_COMM_WORLD);
@@ -183,9 +189,9 @@ BSFC_update_and_send_elements (int myid, int numprocs,
     if (myid != buck->get_myprocess ())
     {
       // neigh info
-      for (i = 0; i <= 2; i++)
-        for (j = 0; j <= 2; j++)
-          for (k = 0; k <= 2; k++)
+      for (i = 0; i < 3; i++)
+        for (j = 0; j < 3; j++)
+          for (k = 0; k < 3; k++)
           {
             // skip thyself
             if ((i == 0) && (j == 0) && (k == 0))
@@ -219,7 +225,6 @@ BSFC_update_and_send_elements (int myid, int numprocs,
   MPI_Status status;
 
   counter = 0;
-
   for (i = 0; i < numprocs; i++)
     if (recv_info[3 * i] != 0)
     {
@@ -400,6 +405,10 @@ BSFC_update_and_send_elements (int myid, int numprocs,
       }
     }
 
+#ifdef DEBUG2
+  fclose (fp);
+#endif
+
   delete []recv_buck_array;
   delete []recv_request;
   delete []recv_info;
@@ -408,9 +417,6 @@ BSFC_update_and_send_elements (int myid, int numprocs,
   for (i = 0; i < numprocs; i++)
     if (send_info[3 * i + 1] != 0)
       j = MPI_Wait ((send_request + i), &status);
-
-  // DEBUG FILE CLSOE
-  // fclose(fp);
 
   delete []send_buck_array;
   delete []send_request;

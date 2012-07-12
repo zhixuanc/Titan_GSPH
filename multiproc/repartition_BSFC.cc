@@ -48,14 +48,14 @@ using namespace std;
 #define SUBBINS_PER_BIN 25 
 
 /* amount of refinement of the bins */
-#define MAX_REFINEMENT_LEVEL 10 
+#define MAX_REFINEMENT_LEVEL 10
 
 /* if you're going to send fewer than this number of 
  * buckets to the processor before or after you on the space filling curve
  * don't bother because the communication isn't worth it, this number is 
- * machine dependent, should probably be much larger than 10
+ * machine dependent, should probably be much larger than 5
  */
-#define MIN_NUM_2_SEND 1
+#define MIN_NUM_2_SEND 5
 
 int
 repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
@@ -72,7 +72,6 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
   unsigned sfc_key[2];
   unsigned buck_key[KEYLENGTH];
   double xx[2];
-  Bucket * buck_old = NULL;
 
   // direction vectors for neighbors
   int Up[DIMENSION] = { 0, 0, 2 };
@@ -86,10 +85,8 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
 
 #ifdef DEBUG2
   char filename[20];
-  static int istep = 0;
-  sprintf (filename, "debug%02d%04d.txt", myid, istep);
+  sprintf (filename, "debug%02d.txt", myid);
   FILE * fp = fopen (filename, "w");
-  istep++;
 #endif
 
 
@@ -111,20 +108,10 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
       for (p_itr = particles.begin (); p_itr != particles.end (); p_itr++)
       {
         Particle *p_curr = (Particle *) P_table->lookup (*p_itr);
-
         if (p_curr->is_real ())
           iwght += 1.;
       }
-      buck_old = curr_buck;
       curr_buck = (Bucket *) BG_mesh->lookup (curr_buck->which_neigh (Up));
-#ifdef DEBUG
-      if ( ! curr_buck )
-      {
-        Key kold = buck_old->which_neigh (Up);
-        fprintf (stderr, "bucket (%u, %u) not found on %d\n", 
-                 kold.key[0], kold.key[1], myid);
-      }
-#endif
       assert (curr_buck);
     }
     while ((curr_buck->which_neigh_proc (Up)) != -1);
@@ -303,7 +290,7 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
     }
     while (buck->which_neigh_proc (Up) != -1);
   }
-
+ 
   // a name can't be more self-explanatory
   BSFC_update_and_send_elements (myid, numprocs, P_table, BG_mesh);
 
@@ -329,12 +316,12 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
       PartitionTable.push_back (bhead);
     }
 
+#ifdef DEBUG2
+      fclose (fp);
+#endif
+
   // sort bucket-heads
   sort (PartitionTable.begin (), PartitionTable.end ());
-
-#ifdef DEBUG2
-  fclose (fp);
-#endif
 
   // clean up
   delete[]work_per_proc;
