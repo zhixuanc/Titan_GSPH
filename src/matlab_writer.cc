@@ -26,57 +26,101 @@
 #endif
 
 #include <cstdio>
+#include <vector>
+#include <cassert>
 using namespace std;
 
 #include <hashtab.h>
 #include <constants.h>
 #include <particle.h>
+#include <buckhead.h>
 #include <bucket.h>
 #include <outforms.h>
+#include <hdf5calls.h>
 
 void
 write_matlab(int myid, HashTable * P_table, HashTable * BG_mesh,
-             TimeProps * timeprops)
+             TimeProps * timeprops, vector <BucketHead>  & partition_table)
 {
-  char file1[20], file2[20];
-  static int icount = 0;
-  double mincrd[DIMENSION], maxcrd[DIMENSION];
+    int i, j;
+    int Up[3] = {0, 0, 2};
+    char file1[25];
+    static int icount = 0;
+    double mincrd[2], maxcrd[2];
+    Bucket * buck2 = NULL;
 
-  sprintf(file1, "active%03d%04d.dat", myid, icount);
-  sprintf(file2, "prtcls%03d%04d.dat", myid, icount);
-  icount++;
+    sprintf(file1, "buckets%03d%06d.h5", myid, timeprops->step);
+    icount++;
 
-  FILE *fp = fopen(file1, "w");
-  FILE *f2 = fopen(file2, "w");
+    hid_t fp = GH5_fopen_serial (file1, 'w');
 
-  HTIterator *itr = new HTIterator(BG_mesh);
-  Bucket *buck;
-
-  while ((buck = (Bucket *) itr->next()))
-    if (buck->is_active())
+    int size = (int) partition_table.size ();
+    double * xcoord = new double [size * 4];
+    double * ycoord = new double [size * 4];
+    int * active = new int [size];
+   
+    vector <BucketHead>::iterator itr;
+    j = 0;
+    for (itr = partition_table.begin(); itr != partition_table.end(); itr++)
     {
-      for (int i = 0; i < DIMENSION; i++)
-      {
-        mincrd[i] = *(buck->get_mincrd() + i);
-        maxcrd[i] = *(buck->get_maxcrd() + i);
-      }
-      int buckettype = buck->get_bucket_type();
+        Bucket * buck = (Bucket *) BG_mesh->lookup ( (unsigned *)itr->get_buck_head ());
+        assert (buck);
 
-      fprintf(fp, "%e, %e, %e, %e, %d\n", mincrd[0], mincrd[1],
-              maxcrd[0], maxcrd[1], buckettype);
-      vector < Key > plist = buck->get_plist();
-      vector < Key >::iterator ip;
-      for (ip = plist.begin(); ip != plist.end(); ip++)
-      {
-        Particle *p = (Particle *) P_table->lookup(*ip);
-        int ghost = (int) p->is_real();
-        const double *coord = p->get_coords();
-        const double *state_vars = p->get_state_vars();
+        active[j] = 0;
+        buck2 = buck;
+        while (buck2->get_bucket_type () != OVERGROUND)
+        {
+            
+            buck2 = (Bucket *) BG_mesh->lookup (buck2->which_neigh (Up));
+            if ( buck2->has_real_particles ())
+            {
+                active[j] += 4;
+                break;
+            }
+        }
 
-        fprintf(f2, "%e, %e, ,%d, %e, %u\n", *(coord), *(coord + 1), ghost,
-                *(state_vars), p->get_neighs().size());
-      }
+        for (i = 0; i < 2; i++)
+        {
+            mincrd[i] = *(buck->get_mincrd()+i);
+            maxcrd[i] = *(buck->get_maxcrd()+i);
+        }
+
+        // corner 0
+        xcoord[4*j] = mincrd[0];
+        ycoord[4*j] = mincrd[1];
+
+        // corner 1
+        xcoord[4*j +1] = maxcrd[0];
+        ycoord[4*j +1] = mincrd[1];
+
+        // corner 2
+        xcoord[4*j + 2] = maxcrd[0];
+        ycoord[4*j + 2] = maxcrd[1];
+
+        // corner 3
+        xcoord[4*j + 3] = mincrd[0];
+        ycoord[4*j + 3] = maxcrd[1];
+
+        if ( buck->is_active () )
+            active[j] += 1;
+
+        // add 1 for paritcles
+        if ( buck->has_ghost_particles ())
+            active[j]++;
+
+        // increment the counter
+        j++;
     }
-  fclose(fp);
-  fclose(f2);
+
+    int dims1[2] = {size, 4};
+    int dims2[2] = {size, 1};
+    GH5_WriteS (fp, "/xcoord", dims1, (void *) xcoord, 0, 0, DOUBLETYPE);
+    GH5_WriteS (fp, "/ycoord", dims1, (void *) ycoord, 0, 0, DOUBLETYPE);
+    GH5_WriteS (fp, "/active", dims2, (void *) active, 0, 0, INTTYPE);
+    GH5_fclose (fp);
+
+    delete [] xcoord;
+    delete [] ycoord;
+    delete [] active;
+    return;
 }

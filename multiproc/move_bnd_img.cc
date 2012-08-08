@@ -1,4 +1,3 @@
-
 /*******************************************************************
  * Copyright (C) 2003 University at Buffalo
  *
@@ -9,15 +8,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Author: 
- * Description: most of this function is taken from move_data of
- *              TITAN, with functionality for migrating particles
- *              along with elements (called Buckets in SPH code)
+ * Author:      dkumar
+ * Description: update ghost particles, whose reflections are on
+ *              other procs
  *
  *******************************************************************
- * $Id: move_data.C,v 1.1.1.1 2003/08/13 19:26:11 sorokine Exp $ 
+ * $Id: $
  */
-#include <vector>
+#include <list>
 #include <cassert>
 using namespace std;
 
@@ -31,7 +29,7 @@ using namespace std;
 
 int
 move_bnd_images (int myid, int nump, HashTable * P_table,
-                 HashTable * BG_mesh, vector < BndImage > & Image_table)
+                 HashTable * BG_mesh, list < BndImage > & Image_table)
 {
 
   if (nump < 2)
@@ -57,7 +55,7 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
    * that proc
    */
   
-  vector < BndImage >::iterator i_img;
+  list < BndImage >::iterator i_img;
   for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
     if (i_img->buckproc != myid)
       recv_info2[i_img->buckproc]++;
@@ -88,14 +86,14 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
   // wait for sends to finish
   for (i = 0; i < nump; i++)
     if (recv_info2[i] > 0)
-      k = MPI_Wait ((req + nump + i), &status);
+      k = MPI_Wait ((req + i), &status);
 
   // wait for recvs to finish
   for (i = 0; i < nump; i++)
     if (send_info[i] > 0)
-      k = MPI_Wait ((req + i), &status);
+      k = MPI_Wait ((req + nump + i), &status);
 
-  delete[]req;
+  delete [] req;
 
   // check data integrity
   for (i = 0;  i < nump; i++)
@@ -168,132 +166,23 @@ move_bnd_images (int myid, int nump, HashTable * P_table,
     if (send_info[j] > 0)
       MPI_Wait ((img_send_req + j), &status);
 
-  delete[]img_send_req;
-  delete[]img_recv_req;
-  delete[]img_counter;
+  delete [] img_send_req;
+  delete [] img_recv_req;
+  delete [] img_counter;
   for (j = 0; j < nump; j++)
   {
     if (send_info[j] > 0)
-      delete[]send_buf[j];
+      delete [] send_buf[j];
     if (recv_info[j] > 0)
-      delete[]recv_buf[j];
+      delete [] recv_buf[j];
   }
-  delete[]send_buf;
-  delete[]recv_buf;
-  delete[]send_info;
-  delete[]recv_info;
+  delete [] send_buf;
+  delete [] recv_buf;
+  delete [] send_info;
+  delete [] recv_info;
+  delete [] recv_info2;
 
   return 0;
 }
 
-// send reflctions that belong to neighboring partitions
-void
-send_foreign_images (int myid, int numprocs, HashTable * P_table,
-                     HashTable * BG_mesh, vector < BndImage > & Image_table)
-{
 
-  if (numprocs < 2)
-    return;
-
-  int i, j;
-  int dir[DIMENSION];
-  double coord[DIMENSION], tmpc[DIMENSION];
-  double refc[DIMENSION], intsct[DIMENSION];
-  unsigned ghst_key[KEYLENGTH], buck_key[KEYLENGTH];
-
-  int *send_info = new int[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    send_info[i] = 0;
-
-  // count number of BoundaryImages to send to other procs
-  vector < BndImage >::iterator i_img;
-  for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
-    if (i_img->buckproc != myid)
-      send_info[i_img->buckproc]++;
-
-  // allocate send buffer
-  BndImage **sendbuf = new BndImage *[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    if (send_info[i] > 0)
-      sendbuf[i] = new BndImage[send_info[i]];
-  int tag = 929;
-
-  // get receive information
-  int *recv_info = new int[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    recv_info[i] = 0;
-
-  // gather recv_info
-  MPI_Alltoall (send_info, 1, MPI_INT, recv_info, 1, MPI_INT, MPI_COMM_WORLD);
-
-  // allocate receive buffer
-  BndImage **recvbuf = new BndImage *[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    if (recv_info[i] > 0)
-      recvbuf[i] = new BndImage[recv_info[i]];
-
-  // post receive 
-  MPI_Request *recv_req = new MPI_Request[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    if (recv_info[i] > 0)
-      MPI_Irecv (recvbuf[i], recv_info[i], BND_IMAGE_TYPE,
-                 i, tag, MPI_COMM_WORLD, &recv_req[i]);
-
-  // pack and send images
-  int *count = new int[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    count[i] = 0;
-
-  for (i_img = Image_table.begin (); i_img != Image_table.end (); i_img++)
-    if (i_img->buckproc != myid)
-    {
-      j = i_img->buckproc;
-      sendbuf[j][count[j]] = *i_img;
-      count[j]++;
-    }
-  // post sends
-  MPI_Request *send_req = new MPI_Request[numprocs];
-
-  for (i = 0; i < numprocs; i++)
-    if (send_info[i] > 0)
-      MPI_Isend (sendbuf[i], send_info[i], BND_IMAGE_TYPE,
-                 i, tag, MPI_COMM_WORLD, &send_req[i]);
-
-  // add to local Image_table after receives
-  MPI_Status status;
-
-  for (i = 0; i < numprocs; i++)
-    if (recv_info[i] != 0)
-    {
-      j = MPI_Wait (&recv_req[i], &status);
-      for (j = 0; j < recv_info[i]; j++)
-        Image_table.push_back (recvbuf[i][j]);
-    }
-
-  // clean up
-  for (i = 0; i < numprocs; i++)
-    if (recv_info[i] > 0)
-      delete[]recvbuf[i];
-  delete[]recvbuf;
-  delete[]recv_req;
-  delete[]recv_info;
-
-  // Wait for sends to finish
-  for (i = 0; i < numprocs; i++)
-    if (send_info[i] != 0)
-      j = MPI_Wait (&send_req[i], &status);
-
-  for (i = 0; i < numprocs; i++)
-    if (send_info[i] > 0)
-      delete[]sendbuf[i];
-  delete[]sendbuf;
-  delete[]send_info;
-  delete[]send_req;
-  delete[]count;
-}

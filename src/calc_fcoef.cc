@@ -148,7 +148,9 @@ calc_f_coef(int myid, HashTable * P_table,
                     }
                     double w = weight(sj, hj);
 
-                    // remove the component normal to velocity
+                    /* 
+                     * remove the component normal to boundary 
+                     */
                     // V_p = V  - (V.n)n
                     double vnorm = dot(vel, norm);
 

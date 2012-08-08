@@ -22,6 +22,7 @@
  */
 
 #include <vector>
+#include <list>
 #include <cassert>
 #include <iostream>
 using namespace std;
@@ -37,7 +38,7 @@ using namespace std;
 
 int
 apply_bcond(int myid, HashTable * P_table, HashTable * BG_mesh,
-            MatProps * matprops, vector < BndImage > & Image_table)
+            MatProps * matprops, list < BndImage > & Image_table)
 {
 
   int i, j;
@@ -51,7 +52,7 @@ apply_bcond(int myid, HashTable * P_table, HashTable * BG_mesh,
   Particle * p_ghost = NULL;
   vector < Key > plist;
   vector < Key >::iterator p_itr;
-  vector < BndImage >::iterator i_img;
+  list < BndImage >::iterator i_img;
 
   for (i_img = Image_table.begin(); i_img != Image_table.end(); i_img++)
     if (i_img->buckproc == myid)
@@ -69,14 +70,6 @@ apply_bcond(int myid, HashTable * P_table, HashTable * BG_mesh,
           fprintf (stderr, "Error: ghost particle missing on proc %d\n", myid);
           return 3;
         }
-
-/*--------------
-        int icrd[2];
-        icrd[0] = (int) ( * p_ghost->get_coords () * 1000);
-        icrd[1] = (int) ( * (p_ghost->get_coords () + 1) * 1000);
-        if ((icrd[0] == 1105) && (icrd[1] == 845))
-          fprintf (stderr, "stick break-point here\n");
- --------------*/
 
         double d = 0.;
         for (i = 0; i < DIMENSION; i++)
@@ -149,7 +142,7 @@ apply_bcond(int myid, HashTable * P_table, HashTable * BG_mesh,
             assert(buck_neigh);
 
           // search buckets for real particles in 3h neighborhood
-          if (buck_neigh->have_real_particles())
+          if (buck_neigh->has_real_particles())
           {
             plist = buck_neigh->get_plist();
             for (p_itr = plist.begin(); p_itr != plist.end(); p_itr++)

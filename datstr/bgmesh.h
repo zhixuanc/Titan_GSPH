@@ -24,35 +24,59 @@
 #ifndef BGMESH__H
 #  define BGMESH__H
 
-#  include <vector>
+# include <vector>
+# include <list>
 using namespace std;
 
-#  include <hashtab.h>
-#  include <bnd_image.h>
-#  include <properties.h>
+#include <hashtab.h>
+#include <bnd_image.h>
+#include <properties.h>
 
-void update_bgmesh (
-                     //! Particle Hash-table
-                     HashTable *,
-                     //! Bucket Hash-table
-                     HashTable *,
-                     //! Material properties
-                     MatProps *,
-                     //! Process ID
-                     int,
-                     //! check if Background Mesh was changed
-                     int *);
+int update_bgmesh (
+    //! Bucket Hash-table 
+    HashTable *, 
+    //! Process ID 
+    int ,
+    //! Total number of procs
+    int ,
+    //! array of switches to communicate with other procs
+    int *);
 
 void search_bnd_images (
-                         //! ProcessID
-                         int,
-                         //! Hash-table of particles
-                         HashTable *,
-                         //! Hash-table of buckets
-                         HashTable *,
-                         //! Vector of Boundary reflections
-                         vector < BndImage > &,
-                         //! flag to reset image-table
-                         int);
+    //! ProcessID
+    int,
+    //! Hash-table of particles
+    HashTable *,
+    //! Hash-table of buckets
+    HashTable *,
+    //! Vector of Boundary reflections
+    list < BndImage > &,
+    //! flag to reset image-table
+    int);
 
+int put_ghost_particles (
+    //! Hash-table of paritcles
+    HashTable *,
+    //! Hash-table if Buckets
+    HashTable *,
+    //! Partition table
+    vector<BucketHead> &,
+    //! Material properties
+    MatProps *,
+    //! array of flags for communication
+    int *,
+    //! process id
+    int , 
+    //! total number of procs
+    int , 
+    //! flag : up if ghost were added 
+    int *);
+
+int delete_unused_ghosts (
+    //! Hash-table of paritcle
+    HashTable *,
+    //! Hash-table of buckets
+    HashTable *,
+    //! process id
+    int);
 #endif

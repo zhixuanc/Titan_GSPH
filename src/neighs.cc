@@ -82,14 +82,26 @@ search_neighs (int myid, HashTable * P_table, HashTable * BG_mesh)
           if (neigh_proc[i] > -1)
           {
             Bucket * neigh_buck = (Bucket *) BG_mesh->lookup (neighbors[i]);
-            if ((!neigh_buck) && (neigh_proc[i] != myid))
+
+            // if neighbor is not found and it belongs to 
+            // different process, it is not needed as it 
+            // doesn't have any particles.
+            if ((! neigh_buck) && (neigh_proc[i] != myid))
               continue;
-            assert(neigh_buck);
+            else
+              assert(neigh_buck);
+
             vector < Key > plist2 = neigh_buck->get_plist();
             vector < Key >::iterator it2;
             for (it2 = plist2.begin(); it2 != plist2.end(); it2++)
             {
               Particle * pj = (Particle *) P_table->lookup(*it2);
+              if ( ! pj )
+              {
+                fprintf (stderr, "Particle: {%u, %u} missing on %d.\n",
+                  it2->key[0], it2->key[1], myid);
+                fflush (stderr);
+              }
               assert(pj);
 
               // get difference of position vectors between i,j

@@ -45,6 +45,7 @@ using namespace std;
 void
 write_output(int myid, int numprocs,
              HashTable * P_table, HashTable * BG_mesh,
+             vector <BucketHead> & partition_table,
              TimeProps * timeprops, int format)
 {
 
@@ -52,7 +53,7 @@ write_output(int myid, int numprocs,
     write_h5part(myid, numprocs, P_table, timeprops);
 
   if (format & 2)
-    write_matlab(myid, P_table, BG_mesh, timeprops);
+    write_matlab(myid, P_table, BG_mesh, timeprops, partition_table);
 
   return;
 }

@@ -108,6 +108,7 @@ if test "x$enable_debug" = "xyes" ; then
 else
   AC_MSG_RESULT([no, CFLAGS="$CFLAGS"])
 fi
+AM_CONDITIONAL(DEBUG, test "x$enable_debug" = "xyes")
 
 # ---------------------------------------------------------------------------
 # Doxygen stuff

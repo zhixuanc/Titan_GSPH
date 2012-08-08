@@ -359,7 +359,7 @@ BSFC_update_and_send_elements (int myid, int numprocs,
     {
       int myprocess = buck->get_myprocess ();
 
-      assert (myprocess >= 0 && myprocess < numprocs);
+      assert ((myprocess > -1) && (myprocess < numprocs));
       pack_bucket ((send_buck_array + counter_send_proc[myprocess]), buck,
                    myprocess);
       counter_send_proc[myprocess] += 1;
