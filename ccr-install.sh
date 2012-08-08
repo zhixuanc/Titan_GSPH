@@ -1,8 +1,9 @@
 #! /bin/bash
 module purge
-module load hdf/5-1.8.6-impi
-export CXX=mpiicpc
-export CC=mpiicc
+module load use.own
+module load hdf18-intel-mpi
+export CXX=mpicxx
+export CC=mpicc
 export CPPFLAGS=-DMPICH_IGNORE_CXX_SEEK
 make clean
 make distclean
