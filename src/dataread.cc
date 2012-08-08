@@ -35,6 +35,11 @@ using namespace std;
 #include <hdf5.h>
 #include "hdf5calls.h"
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 #ifdef MULTI_PROC
 #  include <mpi.h>
 #endif
@@ -65,11 +70,10 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
   else
   {
     matprops->LENGTH_SCALE = 1.;
-    matprops->GRAVITY_SCALE = 1.;
+    matprops->GRAVITY_SCALE = 9.8;
   }
 
   ifstream inD2 ("simulation.data", ios::in);
-
   if (inD2.fail())
   {
     cerr << "ERROR: Can't find \"simulation.data\" input file." << endl;
@@ -96,7 +100,7 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
   pileprops->cosrot = cos(rotang);
   pileprops->sinrot = sin(rotang);
 
-  double time_scale = 1;
+  double time_scale = sqrt(len_scale / matprops->GRAVITY_SCALE);
   // simulation time properties
   inD2 >> timeprops->max_time;
   inD2 >> timeprops->max_steps;
@@ -109,7 +113,8 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
   // material properties
   inD2 >> matprops->P_CONSTANT;
   inD2 >> matprops->GAMMA;
-  inD2 >> matprops->smoothing_length;
+  inD2 >> temp;
+  matprops->smoothing_length = temp / len_scale;
   inD2 >> intfrict;
   inD2 >> bedfrict;
   matprops->particle_mass = pow(matprops->smoothing_length, DIMENSION);
@@ -135,9 +140,10 @@ Read_Data(MatProps * matprops, TimeProps * timeprops,
 }
 
 int
-Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
+Read_Grid (HashTable ** P_table, HashTable ** BG_mesh,
           vector < BucketHead > & partition_tab, MatProps * matprops,
-          PileProps * pileprops, FluxProps * fluxprops)
+          PileProps * pileprops, FluxProps * fluxprops, 
+          int myid, int numprocs, int * my_comm)
 {
   int No_of_Buckets;
   int BG_TABLE_SIZE = 100000;
@@ -153,7 +159,12 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
   Key neigh_keys[NEIGH_SIZE];
   int neigh_proc[NEIGH_SIZE];
   double elev[4];
-  int i, j, k, myid;
+  int i, j, k;
+  double len_scale = matprops->LENGTH_SCALE;
+
+  // set all flags to down
+  for (i = 0; i < numprocs; i++)
+    my_comm[i] = 0;
 
   // infinity
   double infty;
@@ -163,13 +174,24 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
     infty = HUGE_VAL;
 
   // Read Hash-table related constants
-  myid = 0;
-#ifdef MULTI_PROC
-  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-#endif
   sprintf(filename, "funky%04d.h5", myid);
+
+  // compare time-stamps of simulation.data and funkyxxxx.h5
+  struct stat fstat1, fstat2;
+  int file1 = open (filename, O_RDONLY);
+  int file2 = open ("simulation.data", O_RDONLY);
+  fstat (file1, & fstat1);
+  fstat (file2, & fstat2);
+
+  if ( fstat2.st_mtime > fstat1.st_mtime )
+    fprintf (stderr,"WARNING: \"simulation.data\" is more recent than "
+                    " \"%s\"\n", filename);
+  close (file1);
+  close (file2);
+  
   hid_t fp = GH5_fopen_serial(filename, 'r');
 
+ 
   // Read Hash table constants
   GH5_readdata(fp, "/hashtable_constants", hvars);
   mindom[0] = hvars[0];         // min x
@@ -208,14 +230,14 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
       key[j] = bucket[i].key[j];
 
     // min coordinates
-    min_crd[0] = bucket[i].xcoord[0];
-    min_crd[1] = bucket[i].ycoord[0];
-    min_crd[2] = bucket[i].zcoord[0];
+    min_crd[0] = bucket[i].xcoord[0] / len_scale;
+    min_crd[1] = bucket[i].ycoord[0] / len_scale;
+    min_crd[2] = bucket[i].zcoord[0] / len_scale;
 
     // max coordinates
-    max_crd[0] = bucket[i].xcoord[1];
-    max_crd[1] = bucket[i].ycoord[1];
-    max_crd[2] = bucket[i].zcoord[1];
+    max_crd[0] = bucket[i].xcoord[1] / len_scale;
+    max_crd[1] = bucket[i].ycoord[1] / len_scale;
+    max_crd[2] = bucket[i].zcoord[1] / len_scale;
 
     if (bucket[i].myproc != myid)
     {
@@ -232,28 +254,17 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
     {
       for (k = 0; k < KEYLENGTH; k++)
         tempkey.key[k] = bucket[i].neighs[j * KEYLENGTH + k];
+
       neigh_keys[j] = tempkey;
       neigh_proc[j] = bucket[i].neigh_proc[j];
+
+      // turn on all my procs that communicate with this proc
+      if ( neigh_proc[j] > -1 )
+        my_comm[neigh_proc[j]] = 1;
     }
 
     // Check if current bucket has flux source location
-    if (fluxprops->have_src)
-    {
-      double xsrc = fluxprops->xSrc;
 
-      if ((xsrc > min_crd[0]) && (xsrc < max_crd[0])
-          && (bucket[i].buckettype == 2))
-      {
-        for (k = 0; k < KEYLENGTH; k++)
-          tempkey.key[k] = bucket[i].key[k];
-        fluxprops->bucketsrckey = tempkey;
-        // shift fluxsrc a little bit
-        double dx = matprops->smoothing_length;
-        int nn = (int) round((xsrc - min_crd[0]) / dx);
-
-        fluxprops->xSrc = min_crd[0] + nn * dx + dx / 2.;
-      }
-    }
     // Check if current bucket has center of any of the piles
     double xcen = pileprops->xCen;
     double ycen = pileprops->yCen;
@@ -281,7 +292,7 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
     case 2:
       btflag = MIXED;
       for (j = 0; j < 4; j++)
-        elev[j] = bucket[i].elev[j];
+        elev[j] = bucket[i].elev[j] / len_scale;
       break;
     case 3:
       btflag = OVERGROUND;
@@ -297,8 +308,12 @@ Read_Grid(HashTable ** P_table, HashTable ** BG_mesh,
     (*BG_mesh)->add(key, buck);
   }
 
+  // please don't talk to yourself
+  my_comm [myid] = 0;
+
   // free memory
   delete [] bucket;
+
 
   // clear out the partition table
   partition_tab.clear();

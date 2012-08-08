@@ -212,7 +212,7 @@ public:
   }
 
   //! check if already searched the ghost reflection 
-  bool have_reflection ()
+  bool has_reflection ()
   {
     return reflection;
   }

@@ -309,7 +309,10 @@ GH5_WriteS(hid_t fp, const char *path, int dims[], void *buf,
   hsize_t size[2] = { dims[0], dims[1] };
 
   //create data spaces
-  space_id = H5Screate_simple(1, size, 0);
+  if ( dims[1] > 1)
+    space_id = H5Screate_simple(2, size, 0);
+  else
+    space_id = H5Screate_simple(1, size, 0);
 
   //create dataset for the buffer
   hid_t data_type;
@@ -359,8 +362,8 @@ GH5_WriteS(hid_t fp, const char *path, int dims[], void *buf,
 
 #ifdef PARALLEL_IO
 herr_t
-GH5_WriteP(hid_t fp, const char *path, int dims[], void *buf,
-           int start_in, int count_in, const int DATAYPE)
+GH5_WriteP (hid_t fp, const char *path, int dims[], void *buf,
+            int start_in, int count_in, const int DATAYPE)
 {
   hid_t data_id;
   hid_t space_id;
@@ -370,7 +373,10 @@ GH5_WriteP(hid_t fp, const char *path, int dims[], void *buf,
   herr_t status;
 
   //create data spaces
-  space_id = H5Screate_simple(1, size, NULL);
+  if ( dims[1] > 1 )
+    space_id = H5Screate_simple(2, size, NULL);
+  else
+    space_id = H5Screate_simple(1, size, NULL);
 
   //create dataset for the buffer
   hid_t data_type;

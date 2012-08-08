@@ -16,7 +16,8 @@ libmultiproc_a_SOURCES = \
    mpi_struct.cc \
    multiproc.h \
    pack_data.h pack_data.cc \
-   repartition_BSFC.h repartition_BSFC.cc
+   repartition_BSFC.h repartition_BSFC.cc \
+   send_reflections.cc
 
 libmultiproc_a_CPPFLAGS = -I$(top_srcdir)/datstr \
                             -I$(top_srcdir)/src

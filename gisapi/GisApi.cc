@@ -551,32 +551,24 @@ int Get_raster_ymin(double resolution, double* ymin)
 
 int Get_xmax(double resolution, double* xmax)
 {
-  if ( gis_grid.ghead.resolution > resolution )
-    return -1;
   *xmax = gis_grid.ghead.xmax;
   return 0;
 }
 
 int Get_xmin(double resolution, double* xmin)
 {
-  if ( gis_grid.ghead.resolution > resolution )
-    return -1;
   *xmin = gis_grid.ghead.xmin;
   return 0;
 }
 
 int Get_ymax(double resolution, double* ymax)
 {
-  if ( gis_grid.ghead.resolution > resolution )
-    return -1;
   *ymax = gis_grid.ghead.ymax;
   return 0;
 }
 
 int Get_ymin(double resolution, double* ymin)
 {
-  if ( gis_grid.ghead.resolution > resolution )
-    return -1;
   *ymin = gis_grid.ghead.ymin;
   return 0;
 }

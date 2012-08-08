@@ -40,6 +40,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+@DEBUG_TRUE@am__append_1 = debug_bgmesh.h debug_bgmesh.cc
 subdir = datstr
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -54,11 +55,16 @@ AR = ar
 ARFLAGS = cru
 libbgmesh_a_AR = $(AR) $(ARFLAGS)
 libbgmesh_a_LIBADD =
+am__libbgmesh_a_SOURCES_DIST = bgmesh.h bnd_image.h bnd_image.cc \
+	bucket.h bucket.cc hashtab.h hashtab.cc hilbert.h hilbert.c \
+	mesh_update.cc particle.h particle.cc properties.h \
+	debug_bgmesh.h debug_bgmesh.cc
+@DEBUG_TRUE@am__objects_1 = libbgmesh_a-debug_bgmesh.$(OBJEXT)
 am_libbgmesh_a_OBJECTS = libbgmesh_a-bnd_image.$(OBJEXT) \
 	libbgmesh_a-bucket.$(OBJEXT) libbgmesh_a-hashtab.$(OBJEXT) \
 	libbgmesh_a-hilbert.$(OBJEXT) \
 	libbgmesh_a-mesh_update.$(OBJEXT) \
-	libbgmesh_a-particle.$(OBJEXT)
+	libbgmesh_a-particle.$(OBJEXT) $(am__objects_1)
 libbgmesh_a_OBJECTS = $(am_libbgmesh_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -73,7 +79,7 @@ CXXLD = $(CXX)
 CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
 SOURCES = $(libbgmesh_a_SOURCES)
-DIST_SOURCES = $(libbgmesh_a_SOURCES)
+DIST_SOURCES = $(am__libbgmesh_a_SOURCES_DIST)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -164,15 +170,10 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 noinst_LIBRARIES = libbgmesh.a
-libbgmesh_a_SOURCES = bgmesh.h \
-                      bnd_image.h bnd_image.cc \
-                      bucket.h bucket.cc \
-                      hashtab.h hashtab.cc \
-                      hilbert.h hilbert.c \
-                      mesh_update.cc \
-                      particle.h particle.cc \
-                      properties.h
-
+libbgmesh_a_SOURCES = bgmesh.h bnd_image.h bnd_image.cc bucket.h \
+	bucket.cc hashtab.h hashtab.cc hilbert.h hilbert.c \
+	mesh_update.cc particle.h particle.cc properties.h \
+	$(am__append_1)
 libbgmesh_a_CPPFLAGS = -I$(top_srcdir)/src \
                        -I$(top_srcdir)/multiproc
 
@@ -225,6 +226,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbgmesh_a-bnd_image.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbgmesh_a-bucket.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbgmesh_a-debug_bgmesh.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbgmesh_a-hashtab.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbgmesh_a-hilbert.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbgmesh_a-mesh_update.Po@am__quote@
@@ -342,6 +344,20 @@ libbgmesh_a-particle.obj: particle.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libbgmesh_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libbgmesh_a-particle.obj `if test -f 'particle.cc'; then $(CYGPATH_W) 'particle.cc'; else $(CYGPATH_W) '$(srcdir)/particle.cc'; fi`
 uninstall-info-am:
+
+libbgmesh_a-debug_bgmesh.o: debug_bgmesh.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libbgmesh_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libbgmesh_a-debug_bgmesh.o -MD -MP -MF $(DEPDIR)/libbgmesh_a-debug_bgmesh.Tpo -c -o libbgmesh_a-debug_bgmesh.o `test -f 'debug_bgmesh.cc' || echo '$(srcdir)/'`debug_bgmesh.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libbgmesh_a-debug_bgmesh.Tpo $(DEPDIR)/libbgmesh_a-debug_bgmesh.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='debug_bgmesh.cc' object='libbgmesh_a-debug_bgmesh.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libbgmesh_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libbgmesh_a-debug_bgmesh.o `test -f 'debug_bgmesh.cc' || echo '$(srcdir)/'`debug_bgmesh.cc
+
+libbgmesh_a-debug_bgmesh.obj: debug_bgmesh.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libbgmesh_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libbgmesh_a-debug_bgmesh.obj -MD -MP -MF $(DEPDIR)/libbgmesh_a-debug_bgmesh.Tpo -c -o libbgmesh_a-debug_bgmesh.obj `if test -f 'debug_bgmesh.cc'; then $(CYGPATH_W) 'debug_bgmesh.cc'; else $(CYGPATH_W) '$(srcdir)/debug_bgmesh.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libbgmesh_a-debug_bgmesh.Tpo $(DEPDIR)/libbgmesh_a-debug_bgmesh.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='debug_bgmesh.cc' object='libbgmesh_a-debug_bgmesh.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libbgmesh_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libbgmesh_a-debug_bgmesh.obj `if test -f 'debug_bgmesh.cc'; then $(CYGPATH_W) 'debug_bgmesh.cc'; else $(CYGPATH_W) '$(srcdir)/debug_bgmesh.cc'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \

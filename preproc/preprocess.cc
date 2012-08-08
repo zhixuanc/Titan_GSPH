@@ -138,16 +138,25 @@ int main(int argc, char *argv[])
   }
 
   // increase maxdom by pileheight + 1.5 time mesh-resolution
-  double junk, pheight;
-  inSim >> junk;
+  double pheight, xcen, ycen, zcen;
   inSim >> pheight;
+  inSim >> xcen;
+  inSim >> ycen;
   inSim.close ();
-  maxdom[2] += pheight + 1.5 * del;
-   
+
+  // get elevation at the pile-center
+  Get_elevation (resolution, xcen, ycen, &zcen);
+
+  if ( maxdom[2] - mindom[2] < 1.5 * pheight )
+    maxdom[2] = mindom[2] + pheight + 1.5 * del;
+  else
+    maxdom[2] += 1.5 * del;
+ 
   // max number of buckets along each directions
   int nx = (int) ((maxdom[0]-mindom[0])/(del)) + 1;
   int ny = (int) ((maxdom[1]-mindom[1])/(del)) + 1;
-  int nz = (int) ((maxdom[2]-mindom[2])/(del)) + 1;
+  int ncol = (int) (pheight / del + 0.5) + 2;
+  int nz = (int) ((maxdom[2]-mindom[2])/(del)) + 1 + ncol;
 
   maxdom[0] = mindom[0] + nx*del;
   maxdom[1] = mindom[1] + ny*del;
@@ -179,7 +188,7 @@ int main(int argc, char *argv[])
 
   int n[4];
   double elev[4];
-  for (i=0; i<nx; i++)
+  for (i = 0; i < nx; i++)
   {
     xcrd[0] = mindom[0] + i*del;
     xcrd[1] = mindom[0] + (i+1)*del;
@@ -200,7 +209,7 @@ int main(int argc, char *argv[])
       int nmin = min(min(n[0], n[1]), min(n[2], n[3]));
       int nmax = max(max(n[0], n[1]), max(n[2], n[3]));
 
-      for (k=0; k<nz; k++)
+      for (k = 0; k < nz; k++)
       {
         zcrd[0] = mindom[2] + k*del;
         zcrd[1] = mindom[2] + (k+1)*del;
@@ -212,7 +221,13 @@ int main(int argc, char *argv[])
           bgmesh[i][j][k].zcoord[l] = zcrd[l];
         }
 
-        if ( k < nmin )
+        if ((k < nmin - 1) || (k > nmax + ncol))
+        {
+          bgmesh[i][j][k].buckettype = 0;
+          for (l=0; l<DIMENSION+1; l++)
+            bgmesh[i][j][k].elev[l] = 0;
+        }
+        else if ( k == nmin - 1)
         {
           bgmesh[i][j][k].buckettype = 1;
           for (l=0; l<DIMENSION+1; l++)
@@ -245,6 +260,8 @@ int main(int argc, char *argv[])
         // put key value to BG_mesh structure
         for (l=0; l<KEYLENGTH; l++)
           bgmesh[i][j][k].key[l] = key[l];
+
+        // find key value for partition bucket
         if ( k==0 )
         {
           HSFC2d (normc, & keylen, key2);
@@ -267,14 +284,17 @@ int main(int argc, char *argv[])
     partition_table[i].proc = myid;
     j = partition_table[i].xind;
     k = partition_table[i].yind;
-    for (l=0; l<nz; l++)
-      bgmesh[j][k][l].myproc=myid;
+    for (l = 0; l < nz; l++)
+      if ( bgmesh[j][k][l].buckettype )
+        bgmesh[j][k][l].myproc = myid;
+      else
+        bgmesh[j][k][l].myproc = -1;
   }
   
   // determine neighbors
-  for (i=0; i<nx; i++)
-    for (j=0; j<ny; j++)
-      for (k=0; k<nz; k++)
+  for (i = 0; i < nx; i++)
+    for (j = 0; j < ny; j++)
+      for (k = 0; k < nz; k++)
       {
         int ncount=0;
         int npcount=0;
@@ -282,6 +302,9 @@ int main(int argc, char *argv[])
           for (int jj=j-1; jj<j+2; jj++)
             for (int kk=k-1; kk<k+2; kk++)
             {
+              if ( ! bgmesh[i][j][k].buckettype )
+                continue;
+
               if ((ii>-1)&&(ii<nx) &&
                   (jj>-1)&&(jj<ny) &&
                   (kk>-1)&&(kk<nz))
@@ -302,8 +325,9 @@ int main(int argc, char *argv[])
             }
       }
 
+  int kcount;
   vector <ColumnHead> :: iterator c_itr = partition_table.begin ();
-  for (int iproc=0; iproc<np; iproc++)
+  for (int iproc = 0; iproc < np; iproc++)
   {
     vector<BucketStruct> proc_bucks;
     vector <unsigned> partition_keys;
@@ -311,29 +335,39 @@ int main(int argc, char *argv[])
     {
       i = c_itr->xind;
       j = c_itr->yind;
-      for (k=0; k<nz; k++)
-        if ( bgmesh[i][j][k].myproc == iproc )
-            proc_bucks.push_back(bgmesh[i][j][k]);
-        else
+      kcount = 0;
+      for (k = 0; k < nz; k++)
+        if ( bgmesh[i][j][k].buckettype > 0)
         {
-          cerr << "Error: proc-ids don't match" << endl;
-          exit (1);
+          if (bgmesh[i][j][k].myproc == iproc)
+          {
+            proc_bucks.push_back(bgmesh[i][j][k]);
+            kcount++;
+          }
+          else
+          {
+            cerr << "Error: proc-ids don't match" << endl;
+            exit (1);
+          }
         }
+        // copy partition table keys
+        for (k = 0; k < KEYLENGTH; k++)
+          partition_keys.push_back (c_itr->key[k]);
 
-      // copy partition table keys
-      for (k = 0; k < KEYLENGTH; k++)
-        partition_keys.push_back (c_itr->key[k]);
+        // search for the first-bucket
+        for (l = 0; l < nz; l++)
+          if (bgmesh[i][j][l].buckettype == 1)
+            break;
 
-      // copy key of the first bucket in the column
-      for (k = 0; k < KEYLENGTH; k++)
-        partition_keys.push_back (bgmesh[i][j][0].key[k]);
+        // copy key of the first bucket in the column
+        for (k = 0; k < KEYLENGTH; k++)
+          partition_keys.push_back (bgmesh[i][j][l].key[k]);
 
-      // advance the iterator
-      if ( c_itr == partition_table.end () )
-        break;
-      c_itr++;
+        // advance the iterator
+        c_itr++;
+        if ( c_itr == partition_table.end () )
+          break;
     }
-
     createfunky (iproc, 6, htvars, proc_bucks, partition_keys);
     proc_bucks.clear();
   }

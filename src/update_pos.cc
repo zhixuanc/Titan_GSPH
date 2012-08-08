@@ -193,7 +193,7 @@ update_pos(int myid, HashTable * P_table, HashTable * BG_mesh,
                 // if an empty bucket got particle ...
                 //   1 -> turn of have_realp flag
                 //   2 -> turn on adapt flag
-                if (!neigh->have_real_particles())
+                if (! neigh->has_real_particles())
                 {
                   neigh->set_real_particles(true);
                   adapt = 1;
@@ -213,7 +213,7 @@ update_pos(int myid, HashTable * P_table, HashTable * BG_mesh,
               // on current proc
               p_curr->put_guest_flag(false);
               neigh->add_particle(*p_itr);
-              if (!neigh->have_real_particles())
+              if (! neigh->has_real_particles())
               {
                 neigh->set_real_particles(true);
                 adapt = 1;

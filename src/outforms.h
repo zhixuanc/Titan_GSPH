@@ -25,10 +25,11 @@
 #define OUTPUT_FORMATS__H
 
 #include <hashtab.h>
+#include <buckhead.h>
 #include <properties.h>
 
 void write_h5part (int, int, HashTable *, TimeProps *);
 
-void write_matlab (int, HashTable *, HashTable *, TimeProps *);
+void write_matlab (int, HashTable *, HashTable *, TimeProps *, vector<BucketHead> &);
 
 #endif

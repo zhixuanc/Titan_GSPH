@@ -255,15 +255,21 @@ Bucket::put_ghost_particles (HashTable * P_table,
 {
   int i, j, k;
   unsigned key[KEYLENGTH];
-  int Down[DIMENSION] = { 0, 0, 1 };
+  int Down[3] = { 0, 0, 1 };
   unsigned keylen = KEYLENGTH;
   double mindom[DIMENSION], maxdom[DIMENSION];
-  double crd[DIMENSION], normc[DIMENSION];
+  double coord[DIMENSION], normc[DIMENSION];
+  double seed[DIMENSION];
+  vector<Key> new_ghosts;
 
-  vector < Key > neighparts;
-  Key keystr;
+  // particle properties
+  double ma = matprops->particle_mass;
+  double hl = matprops->smoothing_length;
+  double del = hl;
+  double del2 = 0.5 * del;
 
-  if (have_ghost_particles ())
+#ifdef DEBUG
+  if (this->has_ghost_particles ())
   {
     fprintf (stderr,
              "Trying to put ghosts in bucket that already have them. \n");
@@ -271,27 +277,28 @@ Bucket::put_ghost_particles (HashTable * P_table,
              maxcrd[1]);
     exit (1);
   }
+#endif
 
+  // make sure this is the top-most boundary (MIXED) bucket
+  int Up[3] = {0, 0, 2};
+  Bucket * upper = (Bucket *) BG_mesh->lookup (which_neigh (Up));
+  if ( upper->get_bucket_type () != OVERGROUND )
+  {
+    fprintf (stderr, "ghost generation is not happening in correct bucket\n");
+    fflush (stderr);
+    exit (1);
+  }
+
+  // get min-max domain for key generation
   for (i = 0; i < DIMENSION; i++)
   {
     maxdom[i] = *(P_table->get_maxDom () + i);
     mindom[i] = *(P_table->get_minDom () + i);
   }
 
-  // particle properties
-  double ma = matprops->particle_mass;
-  double hl = matprops->smoothing_length;
-  double del = hl;
-  double del2 = 0.5 * del;
-  double seed[DIMENSION];
-
-  // get handle to the neigh below
-  Key nghkey = which_neigh (Down);
-  Bucket *neigh = (Bucket *) BG_mesh->lookup (nghkey);
-
-  assert (neigh);
+  // generate all the ghosts now, we'll figure out 
+  // where to put them later
   int npts = PARTICLE_DENSITY;
-
   for (i = 0; i < npts; i++)
     for (j = 0; j < npts; j++)
     {
@@ -300,47 +307,66 @@ Bucket::put_ghost_particles (HashTable * P_table,
       seed[1] = bnd_ycrd[j];
       seed[2] = get_bndZ (seed);
 
-      if (this->contains (seed))
+      // generate particles
+      coord[0] = seed[0];
+      coord[1] = seed[1];
+
+      for (int ighost = 0; ighost < NUM_GHOST_ROWS; ighost++)
       {
-        // put particles
-        crd[0] = seed[0];
-        crd[1] = seed[1];
+        coord[2] = seed[2] - del2 - ighost * del;
 
-        for (int ighost = 0; ighost < NUM_GHOST_ROWS; ighost++)
-        {
-          crd[2] = seed[2] - del2 - ighost * del;
+        // create a new particle and add to hash-table
+        for (k = 0; k < DIMENSION; k++)
+          normc[k] = (coord[k] - mindom[k]) / (maxdom[k] - mindom[k]);
 
-          // create a new particle and add to hash-table
-          for (k = 0; k < DIMENSION; k++)
-            normc[k] = (crd[k] - mindom[k]) / (maxdom[k] - mindom[k]);
+        // generate hashtable keys
+        HSFC3d (normc, &keylen, key);
+        Key keystr (key);
 
-          // generate hashtable keys
-          HSFC3d (normc, &keylen, key);
-          for (k = 0; k < KEYLENGTH; k++)
-            keystr.key[k] = key[k];
+        // create new ghost partilce
+        Particle *pt = new Particle (key, coord, ma, hl, 1);
 
-          // create new ghost partilce
-          Particle *pt = new Particle (key, crd, ma, hl, 1);
-          // add new particle to hash-table
-          P_table->add (key, pt);
+#ifdef DEBUG
+        // check if particle is a ducplicate
+        if (P_table->lookup (key))
+          fprintf (stderr,"Particle already exists.\n");
+#endif
 
-          // now find out, which bucket it belongs to
-          if (this->contains (crd))
-            particles.push_back (keystr);
-          else
-            neighparts.push_back (keystr);
-        }
+        // add new particle to hash-table
+        P_table->add (key, pt);
+
+        // copy key to vector
+        new_ghosts.push_back (keystr);
       }
     }
-  if (neighparts.size () > 0)
+
+  // since we started at the top-most boundary
+  // bucket, we'll go down one-by-one
+  Bucket * buck = this;
+  vector<Key> temp;
+  vector<Key>::iterator p_itr;
+  while ( buck )
   {
-    neigh->add_ghosts (neighparts);
-    if (neigh->get_bucket_type () == UNDERGROUND)
-      neigh->set_ghost_particles (true);
-    neigh->mark_active ();
+    for (p_itr = new_ghosts.begin (); p_itr != new_ghosts.end(); p_itr++)
+    {
+      Particle *pghost = (Particle *) P_table->lookup (*p_itr);
+      for (i = 0; i < DIMENSION; i++)
+        coord[i] = *(pghost->get_coords() + i);
+
+      if ( buck->contains (coord) )
+        temp.push_back (*p_itr);
+    }
+    // add ghost particle to the list of particles
+    if ( temp.size () > 0 )
+    {
+      buck->add_ghosts (temp);
+      temp.clear ();
+    }
+    buck->set_ghost_particles (true);
+    buck->mark_active ();
+    buck = (Bucket *) BG_mesh->lookup (buck->which_neigh (Down));
   }
 
-  set_ghost_particles (true);
   return 0;
 }
 

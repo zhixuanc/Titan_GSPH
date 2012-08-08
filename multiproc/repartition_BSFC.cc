@@ -48,18 +48,18 @@ using namespace std;
 #define SUBBINS_PER_BIN 25 
 
 /* amount of refinement of the bins */
-#define MAX_REFINEMENT_LEVEL 10 
+#define MAX_REFINEMENT_LEVEL 10
 
 /* if you're going to send fewer than this number of 
  * buckets to the processor before or after you on the space filling curve
  * don't bother because the communication isn't worth it, this number is 
- * machine dependent, should probably be much larger than 10
+ * machine dependent, should probably be much larger than 5
  */
-#define MIN_NUM_2_SEND 1
+#define MIN_NUM_2_SEND 5
 
 int
 repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
-             HashTable * BG_mesh)
+             HashTable * BG_mesh, int * my_comm)
 {
   int i, j, k;                  /* local variables */
   int num_local_objects;        /* the number of objects this processor owns */
@@ -72,7 +72,6 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
   unsigned sfc_key[2];
   unsigned buck_key[KEYLENGTH];
   double xx[2];
-  Bucket * buck_old = NULL;
 
   // direction vectors for neighbors
   int Up[DIMENSION] = { 0, 0, 2 };
@@ -84,12 +83,11 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
   if (numprocs < 2)
     return 0;
 
+
 #ifdef DEBUG2
   char filename[20];
-  static int istep = 0;
-  sprintf (filename, "debug%02d%04d.txt", myid, istep);
+  sprintf (filename, "debug%02d.txt", myid);
   FILE * fp = fopen (filename, "w");
-  istep++;
 #endif
 
 
@@ -103,7 +101,7 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
 
     Bucket *curr_buck = (Bucket *) BG_mesh->lookup (buck_key);
     assert (curr_buck);
-    float iwght = 0.;
+    float wght = 0.;
     do
     {
       vector < Key > particles = curr_buck->get_plist ();
@@ -111,25 +109,15 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
       for (p_itr = particles.begin (); p_itr != particles.end (); p_itr++)
       {
         Particle *p_curr = (Particle *) P_table->lookup (*p_itr);
-
         if (p_curr->is_real ())
-          iwght += 1.;
+          wght += 1.;
       }
-      buck_old = curr_buck;
       curr_buck = (Bucket *) BG_mesh->lookup (curr_buck->which_neigh (Up));
-#ifdef DEBUG
-      if ( ! curr_buck )
-      {
-        Key kold = buck_old->which_neigh (Up);
-        fprintf (stderr, "bucket (%u, %u) not found on %d\n", 
-                 kold.key[0], kold.key[1], myid);
-      }
-#endif
       assert (curr_buck);
     }
     while ((curr_buck->which_neigh_proc (Up)) != -1);
-    weights.push_back (iwght);
-    total_weight += iwght;
+    weights.push_back (wght);
+    total_weight += wght;
   }
 
   double * work_per_proc = new double [numprocs];
@@ -303,9 +291,39 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
     }
     while (buck->which_neigh_proc (Up) != -1);
   }
+ 
+#ifdef DEBUG2
+  // check final load-distribution
+  float * local_load = new float [numprocs];
+  float * global_load = new float [numprocs];
+  for (i = 0; i < numprocs; i++)
+    local_load[i] = global_load[i] = 0.;
+
+  for (i = 0; i < num_local_objects; i++)
+    local_load[sfc_vertices[i].destination_proc] +=
+      sfc_vertices[i].lb_weight;
+
+  MPI_Reduce (local_load, global_load, numprocs, 
+              MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  if (myid == 0)
+    for (i = 0; i < numprocs; i++)
+    {
+      fprintf (stdout, "%d -> %f\n", i, global_load[i]);
+      fflush (stdout);
+    }
+  delete [] local_load;
+  delete [] global_load;
+#endif
 
   // a name can't be more self-explanatory
+  MPI_Barrier (MPI_COMM_WORLD);
   BSFC_update_and_send_elements (myid, numprocs, P_table, BG_mesh);
+
+
+  // reset communication flags 
+  for (i = 0; i < numprocs; i++)
+    my_comm [i] = 0;
 
   // update the repartion info
   PartitionTable.clear ();
@@ -316,6 +334,13 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
   unsigned keylen = 2;
   double normc[2];
   while ((buck = (Bucket *) itr->next ()))
+  {
+    // find out communication buddies of this prcess
+    const int * neigh_proc = buck->get_neigh_proc ();
+    for (i = 0; i < NEIGH_SIZE; i++)
+      if (neigh_proc[i] > -1)
+        my_comm[neigh_proc[i]] = 1;
+
     if (buck->which_neigh_proc (Down) == -1)
     {
       Key bkey = buck->getKey ();
@@ -328,13 +353,17 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
       BucketHead bhead (sfc_key, bkey.key);
       PartitionTable.push_back (bhead);
     }
+  }
+
+  // no self communication
+  my_comm[myid] = 0;
+
+#ifdef DEBUG2
+      fclose (fp);
+#endif
 
   // sort bucket-heads
   sort (PartitionTable.begin (), PartitionTable.end ());
-
-#ifdef DEBUG2
-  fclose (fp);
-#endif
 
   // clean up
   delete[]work_per_proc;

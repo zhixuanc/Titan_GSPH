@@ -233,7 +233,7 @@ BSFC_refine_partition (int * local_balanced_flag,
         {
           ll_bins_head[i] = -1;
           local_balanced_flag_array[i] = BSFC_BALANCED;
-#ifdef DEBUG
+#ifdef DEBUG2
           printf ("Bin refinement cannot improve load balance on proc %d\n",
                   myid);
 #endif

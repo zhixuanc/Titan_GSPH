@@ -53,13 +53,14 @@ private:
   double poly[4];
   bool active;
   bool guest_flag;
+  int newold;
   int particles_type;
   int myprocess;
   int bucket_type;
   int neigh_proc[NEIGH_SIZE];
   Key neighbors[NEIGH_SIZE];
-    vector < Key > particles;
-    vector < Key > new_plist;
+  vector < Key > particles;
+  vector < Key > new_plist;
 
 public:
   //! Contructors
@@ -180,6 +181,12 @@ public:
       particles_type &= FIRST_BIT_UP;
   }
 
+  //! put newold information
+  void put_new_old (int info)
+  {
+    newold = info;
+  }
+
   // update friction_coefs
   void put_f_coef (double *fcoef)
   {
@@ -224,6 +231,13 @@ public:
   int is_guest ()
   {
     return guest_flag;
+  }
+
+
+  //! get newold info
+  int get_new_old ()
+  {
+    return newold;
   }
 
   //! get repartition weights
@@ -281,13 +295,13 @@ public:
   }
 
   //! check if bucket has any real particles
-  bool have_real_particles () const
+  bool has_real_particles () const
   {
     return (particles_type & FIRST_BIT_UP);
   }
 
   //! check if bucket has ghost particles
-  bool have_ghost_particles () const
+  bool has_ghost_particles () const
   {
     return (particles_type & SECND_BIT_UP);
   }
@@ -347,28 +361,20 @@ public:
 
   //! Add ghost particles to the bucket
   int put_ghost_particles (
-                            //! Particle HashTable
-                            HashTable *,
-                            //! Background Mesh
-                            HashTable *,
-                            //! Material properties
-                            MatProps *);
+    //! Particle HashTable
+    HashTable *,
+    //! Background Mesh
+    HashTable *,
+    //! Material properties
+    MatProps *);
 
-  //! Mark buckets that contains real particles
-  void add_extra_ghosts (
-                          //! Particle HashTable
-                          HashTable *,
-                          //! Background Mesh
-                          HashTable *,
-                          //! Material properties
-                          MatProps *);
   void Copy_data (
-                   //! void pointer to datastream
-                   void *,
-                   //! HashTable of particles
-                   HashTable *,
-                   //! current process id
-                   int);
+    //! void pointer to datastream
+    void *,
+    //! HashTable of particles
+    HashTable *,
+    //! current process id
+    int);
 };
 
 #endif // BUCKET__H

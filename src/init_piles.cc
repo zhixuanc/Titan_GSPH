@@ -40,7 +40,7 @@ using namespace std;
 
 #include "sph_header.h"
 
-#define CYLINDERICAL_PILE
+//#define CYLINDERICAL_PILE
 //#define TRAPIZOIDAL_PILE
 
 double
@@ -260,7 +260,7 @@ init_piles(HashTable * P_table, HashTable * BG_mesh,
       if (*(Curr_buck->get_neigh_proc () + i) == myid )
       {
         Bucket *neigh = (Bucket *) BG_mesh->lookup (nkey[i]);
-        if (neigh->have_real_particles ()) 
+        if (neigh->has_real_particles ()) 
         {
           Curr_buck->mark_active ();
           break; 

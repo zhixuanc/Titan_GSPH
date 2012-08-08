@@ -24,6 +24,7 @@
 #define PARTICLER__H
 
 #include <vector>
+#include <list>
 using namespace std;
 
 #include <hashtab.h>
@@ -49,7 +50,7 @@ int apply_bcond (
                  HashTable *,  //! Hashtable of SPH partilces
                  HashTable *,  //! Background mesh
                  MatProps *,    //! Structure of material properties 
-                 vector <BndImage> & //! partition table
+                 list <BndImage> & //! table of ghost images
                 );
 
 //! Put initial piles. All piles are Elliptical-parablpoids
@@ -86,7 +87,10 @@ int Read_Grid (
                vector<BucketHead> &,  //! Vector of sorted partition table keys
                MatProps  *,    //! Structure containing material properties
                PileProps *,    //! Structure containing initial piles data
-               FluxProps *
+               FluxProps *,    //! Structure cotaining pros of flux source
+               int ,           //! my process id
+               int ,           //! number of total processes
+               int *           //! array of flags, for cummnication with other procs
               );
 
 //! Search neighbors for their proximity
@@ -123,6 +127,7 @@ void write_output(
                   int ,        //! total number of procs
                   HashTable *, //! HashTable of SPH particles
                   HashTable *, //! HashTable of Background Cells
+                  vector<BucketHead> &, //! table of partitioned keys
                   TimeProps *, //! Structure time properties
                   int     //! file format, {\it i.e.} hdf5, tecplot etc
                  );
