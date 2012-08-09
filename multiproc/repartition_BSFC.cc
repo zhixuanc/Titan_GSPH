@@ -346,7 +346,7 @@ repartition (vector < BucketHead > & PartitionTable, HashTable * P_table,
       Key bkey = buck->getKey ();
       for (i = 0; i < 2; i++)
       {
-        xx[i] = (*(buck->get_mincrd () + i) + *(buck->get_maxcrd () + j)) * 0.5;
+        xx[i] = (*(buck->get_mincrd () + i) + *(buck->get_maxcrd () + i)) * 0.5;
         normc[i] = (xx[i] - mindom[i]) / (maxdom[i] - mindom[i]);
       }
       HSFC2d (normc , & keylen, sfc_key);

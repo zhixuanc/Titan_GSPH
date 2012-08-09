@@ -224,37 +224,25 @@ linsolve31 (double * A, double * d, double * sol )
   return;
 }
 
+
 /* 
- * fit least square surface with 4 constants
  * z = p1 x + p2 y + p3 x y + p4 
  */
-void lsq_surf4 (double * x, double * y, double * z, double * poly)
+void poly_surf (double * x, double * y, double * z, double * poly)
 {
-  double t1 = y[0] * y[0];
-  double t2 = y[1] * y[1];
-  double t3 = t1 + t2;
-  double t4 = x[0] * x[0];
-  double t5 = t4 + (-2 * x[0] + x[1]) * x[1];
-  t4 = -x[1] * x[1] - t4;
-  t5 = t1 * t5 + (y[0] * (2 * t4 + 4 * x[1] * x[0]) + t5 * y[1]) * y[1];
-  double t6 = (z[0] + z[3]) * x[0] + (z[1] + z[2]) * x[1];
-  double t7 = y[1] + y[0];
-  double t8 = t7 * x[0] + t7 * x[1];
-  double t9 = (z[0] + z[1]) * y[0] + (z[2] + z[3]) * y[1];
-  double t10 = (y[0] * z[0] + y[1] * z[3]) * x[0] + 
-               (y[0] * z[1] + y[1] * z[2]) * x[1];
-  double t11 = z[0] + z[1] + z[2] + z[3];
-  t5 = 1. / t5;
-  double t12 = t3 * t6 - t7 * t10;
-  double t13 = -t4;
-  double t14 = x[0] + x[1];
-  double t15 = t13 * t7;
+   
+  // pt0 (x=0, y=0)
+  poly[3] = z[0];
 
-  // solve the linear equations
-  poly[0] = t5 * (2 * t12 + t8 * t9 - (t3 * x[0] + t3 * x[1]) * t11);
-  poly[1] = t5 * (2 * t13 * t9 - 2 * t14 * t10 - t15 * t11 + t8 * t6);
-  poly[2] = t5 * (-2 * t7 * t6 - 2 * t14 * t9 + t7 * t14 * t11 + 4 * t10);
-  poly[3] = t5 * (-t12 * t14 - t15 * t9 + (-t1 * t4 - t2 * t4) * t11);
+  // pt1 (x = dx, y = 0)
+  poly[0] = (z[1] - poly[3]) / x[1];
+
+  // pt3 (x = 0, y = dy)
+  poly[1] = (z[3] - poly[3]) / y[1];
+
+  // pt2 (x = dx, y = dx)
+  poly[2] = (z[2] - (poly[0] * x[1] + poly[1] * y[1] + poly[3])) / 
+            (x[1] * y[1]);
   return;
 }
 

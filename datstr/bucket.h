@@ -256,10 +256,15 @@ public:
   }
 
   //! Value of elevation z(x,y) using linear interpolation
-  double get_bndZ (double x[]) const
+  double get_bndZ (double coord[]) const
   {
+    int i;
+    double x[DIMENSION-1];
+    for (i = 0; i < DIMENSION-1; i++)
+      x[i] = coord[i] - mincrd[i];
+
     return (poly[0] * x[0] + poly[1] * x[1] + 
-            poly[2] * x[0] * x[1] + poly[3]);
+            poly[2] * x[0] * x[1] + poly[3] + mincrd[2]);
   }
 
   // get array of x-boundary points

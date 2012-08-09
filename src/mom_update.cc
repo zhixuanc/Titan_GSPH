@@ -260,10 +260,10 @@ mom_update(int myid, HashTable * P_table, HashTable * BG_mesh,
           */
 
           //  x-velocity
-          unew[1] = uvec[1] + dt * (rhs[0] + gravity[0]);
+          unew[1] = uvec[1] + dt * (rhs[0]);
 
           // y-velocity
-          unew[2] = uvec[2] + dt * (rhs[1] + gravity[1]);
+          unew[2] = uvec[2] + dt * (rhs[1]);
 
           // z-velocity
           unew[3] = uvec[3] + dt * (rhs[2] + gravity[2]);

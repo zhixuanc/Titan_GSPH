@@ -15,10 +15,6 @@ libbgmesh_a_SOURCES = bgmesh.h \
                       particle.h particle.cc \
                       properties.h
 
-if DEBUG
-libbgmesh_a_SOURCES += debug_bgmesh.h debug_bgmesh.cc
-endif
-
 libbgmesh_a_CPPFLAGS = -I$(top_srcdir)/src \
                        -I$(top_srcdir)/multiproc
 

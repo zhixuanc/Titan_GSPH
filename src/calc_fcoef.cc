@@ -55,7 +55,8 @@ calc_f_coef(int myid, HashTable * P_table,
   Bucket *curr_bucket;
 
   while ((curr_bucket = (Bucket *) itr->next()))
-    if (curr_bucket->is_active() && !(curr_bucket->is_guest()) &&
+    if ((curr_bucket->is_active()) && 
+        (! curr_bucket->is_guest()) &&
         (curr_bucket->get_bucket_type() == MIXED))
     {
       // initalize 

@@ -34,6 +34,9 @@ search_bnd_images (int myid, HashTable * P_table, HashTable * BG_mesh,
   double refc[DIMENSION], intsct[DIMENSION];
   unsigned ghst_key[KEYLENGTH], buck_key[KEYLENGTH];
 
+  // get a domain length
+  double len_domain = *(BG_mesh->get_maxDom()) - *(BG_mesh->get_minDom());
+ 
   // always reset after repatition
   if (reset)
   {
@@ -76,7 +79,6 @@ search_bnd_images (int myid, HashTable * P_table, HashTable * BG_mesh,
 
             // first look in current bucket, 
             // ... if current bucket has boundary information
-            bnddist = 1.0E+10;   // some large value
             if (buck->get_bucket_type () == MIXED)
             {
               buck2 = buck;
@@ -85,15 +87,15 @@ search_bnd_images (int myid, HashTable * P_table, HashTable * BG_mesh,
 
             // then check neighboring buckets, and compare
             // ... perpendicular distance
-              for (i = 0; i < NEIGH_SIZE; i++)
-                if (neigh_proc[i] > -1)
-                {
-                  buck_neigh = (Bucket *) BG_mesh->lookup (neighbors[i]);
+            for (i = 0; i < NEIGH_SIZE; i++)
+              if (neigh_proc[i] > -1)
+              {
+                buck_neigh = (Bucket *) BG_mesh->lookup (neighbors[i]);
 
-                 // skip neighbor if it belongs to foreign process
-                 // but is not synchronized
-                 if (!(buck_neigh) && (neigh_proc[i] != myid))
-                   continue;
+                // skip neighbor if it belongs to foreign process
+                // but is not synchronized
+                if (!(buck_neigh) && (neigh_proc[i] != myid))
+                  continue;
 
                 // involve only if neighbor bucket is a boundary bucket
                 if (buck_neigh->get_bucket_type () == MIXED)
@@ -109,6 +111,14 @@ search_bnd_images (int myid, HashTable * P_table, HashTable * BG_mesh,
                   }
                 }
               }
+
+            // if bnd-distace is too much, then we were unable to
+            // find the reflection, hopefully we'll be fine
+            if (bnddist > len_domain)
+            {
+              fprintf(stderr, "%f, %f, %f\n", coord[0], coord[1], coord[2]);
+              continue;
+            }
 
             /* 
              *  Now, we have found the samllest perpendicular distance
@@ -153,6 +163,8 @@ search_bnd_images (int myid, HashTable * P_table, HashTable * BG_mesh,
                           *(buck->get_mincrd()+1), *(buck->get_mincrd()+2));
                   fprintf (stderr, "coord : = {%f, %f, %f}\n", coord[0], coord[1], coord[2]);
                   fprintf (stderr, "refc : = {%f, %f, %f}\n", refc[0], refc[1], refc[2]);
+                  fprintf (stderr, "key := %u, %u\n", p_ghost->getKey().key[0],
+                                    p_ghost->getKey().key[1]);
                   fflush (stderr);
                   break;
                 }

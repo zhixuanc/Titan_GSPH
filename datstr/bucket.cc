@@ -1,4 +1,3 @@
-
 /*
  * =====================================================================================
  *
@@ -101,13 +100,21 @@ Bucket::Bucket (unsigned *keyi, double *minx, double *maxx, int buck_type,
 
   if (bucket_type == MIXED)
   {
+
+    // transform to local coordinate sys
     double xcrd[2], ycrd[2];
-    xcrd[0] = mincrd[0];    //x(i)
-    xcrd[1] = maxcrd[0];    //x(i+1)
-    ycrd[0] = mincrd[1];    //y(j)
-    ycrd[1] = maxcrd[1];    //y(j+1)
-    lsq_surf4 (xcrd, ycrd, elev, poly);
-    bool printit = false;
+    xcrd[0] = 0;    //x(i)
+    xcrd[1] = maxcrd[0] - mincrd[0];    //x(i+1)
+    ycrd[0] = 0;    //y(j)
+    ycrd[1] = maxcrd[1] - mincrd[1];    //y(j+1)
+
+    // and transform elevs too
+    for (i = 0; i < 4; i++)
+      elev[i] -= mincrd[2];     
+
+    // fit the surface // 4 pts - 4 constants
+    poly_surf (xcrd, ycrd, elev, poly);
+
     for (i=0; i<4; i++)
       if (isnan (poly[i]))
         exit (51);
@@ -149,13 +156,17 @@ Bucket::Bucket ()
  * /f$ \mathbf{x} \in \Gamma^i\f$.
  */
 int
-Bucket::get_bnd_normal (double pnt[], double normal[]) const
+Bucket::get_bnd_normal (double point[], double normal[]) const
 {
   int i;
-
   // if this isn't a boundary bucket, it shouldn't
   if ( bucket_type != MIXED )
     return 1;
+
+  double pnt[DIMENSION-1];
+  for (i = 0; i < DIMENSION-1; i++)
+    pnt[i] = point[i] - mincrd[i];
+  
   normal[0] = -(poly[0] + poly[2] * pnt[1]);    // P1 + P3*x
   normal[1] = -(poly[1] + poly[2] * pnt[0]);    // P2 + P3*y
   normal[2] = 1.;
@@ -231,21 +242,15 @@ Bucket::find_neigh_dir (Key keyin, int dir[]) const
 double
 Bucket::get_bnddist (double pnt[], double intsct[]) const
 {
-  if (bucket_type == MIXED)
+  if (!calc_intersection (pnt , intsct))
   {
-    calc_intersection (pnt , intsct);
-    if ( this->contains (intsct) )
-    {
-      double d = 0;
-      for (int i=0; i<DIMENSION; i++)
-        d += (pnt[i] - intsct[i]) * (pnt[i] - intsct[i]);
-      return sqrt (d);
-    }
+    double d = 0;
+    for (int i=0; i<DIMENSION; i++)
+      d += (pnt[i] - intsct[i]) * (pnt[i] - intsct[i]);
+    return sqrt (d);
+  }
     else
       return 1.E+10;
-  }
-  else
-    return 1.E+10;
 }
 
 // put ghost particles in active buckets
@@ -378,26 +383,31 @@ Bucket::put_ghost_particles (HashTable * P_table,
  *  Newton's method, upto 5 cycles is used.
  */
 int 
-Bucket::calc_intersection (double * pt, double * xnew) const
+Bucket::calc_intersection (double * point, double * xnew) const
 {
   register int i, j;
   register double xold[DIMENSION];
   register double pl[4];
-  double tmp[DIMENSION];
+  double pt[DIMENSION], tmp[DIMENSION];
   double tol = 1.0E-5;
   double err = 0.;
 
-  // hopefully it will staty in registers
+  // transform point to local coordinates
+  for (i = 0; i < DIMENSION; i++)
+    pt[i] = point[i] - mincrd[i];
+
+  // hopefully it will stay in registers
   for (i = 0; i < 4; i++)
     pl[i] = poly[i];
 
   // inital guess
-  xnew[0] = pt[0];
-  xnew[1] = pt[1];
-  xnew[2] = this->get_bndZ (xnew);
+  xnew[0] = 0.5 * (maxcrd[0] - mincrd[0]);
+  xnew[1] = 0.5 * (maxcrd[1] - mincrd[1]);
+  xnew[2] = pl[0] * xnew[0] + pl[1] * xnew[1] + 
+            pl[2] * xnew[0] * xnew[1] + pl[3];
 
   // Newton's method
-  for (i=0; i<5; i++)
+  for (i=0; i<8; i++)
   {
     // copy x(n+1) to x(n)
     for (j = 0; j < DIMENSION; j++)
@@ -447,5 +457,10 @@ Bucket::calc_intersection (double * pt, double * xnew) const
     if (sqrt (err) < tol ) break;
   }
   if ( sqrt (err) > tol ) return 1;
+
+  // transform back to global coordinates
+  for (i = 0; i < DIMENSION; i++)
+    xnew[i] += mincrd[i];
+
   return 0;
 }

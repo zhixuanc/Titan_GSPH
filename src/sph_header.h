@@ -190,7 +190,7 @@ void lsq_surf3 (
                 //! polynomial constants
                 double * poly);
 
-void lsq_surf4 (
+void poly_surf (
                 //! [x(i), x(i+1)]
                 double * x,
                 //! [y(j), y(j+1)]

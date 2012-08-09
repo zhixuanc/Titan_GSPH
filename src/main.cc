@@ -42,9 +42,6 @@ using namespace std;
 #include "sph_header.h"
 #include "particler.h"
 
-#ifdef DEBUG
-#include <debug_bgmesh.h>
-#endif
 
 int
 main(int argc, char **argv)
