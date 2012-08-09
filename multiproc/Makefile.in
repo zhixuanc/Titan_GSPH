@@ -101,6 +101,8 @@ CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
+DEBUG_FALSE = @DEBUG_FALSE@
+DEBUG_TRUE = @DEBUG_TRUE@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
@@ -366,21 +368,21 @@ libmultiproc_a-repartition_BSFC.obj: repartition_BSFC.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='repartition_BSFC.cc' object='libmultiproc_a-repartition_BSFC.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libmultiproc_a-repartition_BSFC.obj `if test -f 'repartition_BSFC.cc'; then $(CYGPATH_W) 'repartition_BSFC.cc'; else $(CYGPATH_W) '$(srcdir)/repartition_BSFC.cc'; fi`
-uninstall-info-am:
 
 libmultiproc_a-send_reflections.o: send_reflections.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libmultiproc_a-send_reflections.o -MD -MP -MF $(DEPDIR)/libmultiproc_a-send_reflections.Tpo -c -o libmultiproc_a-send_reflections.o `test -f 'send_reflections.cc' || echo '$(srcdir)/'`send_reflections.cc
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libmultiproc_a-send_reflections.Tpo $(DEPDIR)/libmultiproc_a-send_reflections.Po
+@am__fastdepCXX_TRUE@	if $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libmultiproc_a-send_reflections.o -MD -MP -MF "$(DEPDIR)/libmultiproc_a-send_reflections.Tpo" -c -o libmultiproc_a-send_reflections.o `test -f 'send_reflections.cc' || echo '$(srcdir)/'`send_reflections.cc; \
+@am__fastdepCXX_TRUE@	then mv -f "$(DEPDIR)/libmultiproc_a-send_reflections.Tpo" "$(DEPDIR)/libmultiproc_a-send_reflections.Po"; else rm -f "$(DEPDIR)/libmultiproc_a-send_reflections.Tpo"; exit 1; fi
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='send_reflections.cc' object='libmultiproc_a-send_reflections.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libmultiproc_a-send_reflections.o `test -f 'send_reflections.cc' || echo '$(srcdir)/'`send_reflections.cc
 
 libmultiproc_a-send_reflections.obj: send_reflections.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libmultiproc_a-send_reflections.obj -MD -MP -MF $(DEPDIR)/libmultiproc_a-send_reflections.Tpo -c -o libmultiproc_a-send_reflections.obj `if test -f 'send_reflections.cc'; then $(CYGPATH_W) 'send_reflections.cc'; else $(CYGPATH_W) '$(srcdir)/send_reflections.cc'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libmultiproc_a-send_reflections.Tpo $(DEPDIR)/libmultiproc_a-send_reflections.Po
+@am__fastdepCXX_TRUE@	if $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libmultiproc_a-send_reflections.obj -MD -MP -MF "$(DEPDIR)/libmultiproc_a-send_reflections.Tpo" -c -o libmultiproc_a-send_reflections.obj `if test -f 'send_reflections.cc'; then $(CYGPATH_W) 'send_reflections.cc'; else $(CYGPATH_W) '$(srcdir)/send_reflections.cc'; fi`; \
+@am__fastdepCXX_TRUE@	then mv -f "$(DEPDIR)/libmultiproc_a-send_reflections.Tpo" "$(DEPDIR)/libmultiproc_a-send_reflections.Po"; else rm -f "$(DEPDIR)/libmultiproc_a-send_reflections.Tpo"; exit 1; fi
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='send_reflections.cc' object='libmultiproc_a-send_reflections.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmultiproc_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libmultiproc_a-send_reflections.obj `if test -f 'send_reflections.cc'; then $(CYGPATH_W) 'send_reflections.cc'; else $(CYGPATH_W) '$(srcdir)/send_reflections.cc'; fi`
+uninstall-info-am:
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
